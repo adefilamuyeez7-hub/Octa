@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowUpRight, CheckCircle2, Heart, Quote, Repeat2, Sparkles, Ticket } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { appRepository } from "../lib/storage";
 
 const TOTAL_MINTS = 800;
@@ -13,8 +13,8 @@ export const Route = createFileRoute("/buy")({
 });
 
 function EarlyCardPage() {
-  const [email, setEmail] = useState("");
-  const [quote, setQuote] = useState(BASE_AGENT_PROMPT);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const quoteRef = useRef<HTMLTextAreaElement>(null);
   const [liked, setLiked] = useState(false);
   const [quoted, setQuoted] = useState(false);
   const [minted, setMinted] = useState(false);
@@ -37,17 +37,21 @@ function EarlyCardPage() {
     };
   }, []);
 
+  const getQuote = () => quoteRef.current?.value.trim() ?? "";
+  const getEmail = () => emailRef.current?.value.trim() ?? "";
+
   const recordSocialTask = async (type: "early_card_like_retweet" | "early_card_quote") => {
     await appRepository.appendTask({
       type,
       title: type === "early_card_quote" ? "Quote submitted" : "Liked and retweeted launch tweet",
-      text: type === "early_card_quote" ? quote.trim() : "Like and retweet completed",
+      text: type === "early_card_quote" ? getQuote() : "Like and retweet completed",
       createdAt: new Date().toISOString(),
     });
   };
 
   const submitQuote = async () => {
-    if (!quote.trim() || quote.trim() === BASE_AGENT_PROMPT.trim()) {
+    const quote = getQuote();
+    if (!quote || quote === BASE_AGENT_PROMPT.trim()) {
       alert("Add your thought on AI agents on Base before submitting.");
       return;
     }
@@ -56,7 +60,7 @@ function EarlyCardPage() {
     await recordSocialTask("early_card_quote");
     setQuoted(true);
     setLoading(false);
-    window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(quote.trim())}`, "_blank", "noopener,noreferrer");
+    window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(quote)}`, "_blank", "noopener,noreferrer");
   };
 
   const markLikeRetweet = async () => {
@@ -68,7 +72,7 @@ function EarlyCardPage() {
   };
 
   const mintPass = async () => {
-    const trimmedEmail = email.trim();
+    const trimmedEmail = getEmail();
     if (!trimmedEmail) {
       alert("Enter an email for your Early Card record.");
       return;
@@ -96,7 +100,7 @@ function EarlyCardPage() {
     setLoading(false);
   };
 
-  const canMint = socialReady && Boolean(email.trim()) && remaining > 0 && !minted;
+  const canMint = socialReady && remaining > 0 && !minted;
   const tasks = [
     { label: "Like and retweet the launch tweet", done: liked, action: markLikeRetweet, icon: Repeat2 },
     { label: "Submit a quote with your thought on AI agents on Base", done: quoted, action: submitQuote, icon: Quote },
@@ -129,8 +133,7 @@ function EarlyCardPage() {
             <div className="mx-auto mt-7 max-w-xl rounded-lg border border-white/10 bg-black/35 p-2">
               <input
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                ref={emailRef}
                 className="min-h-11 w-full bg-transparent px-3 text-sm text-white outline-none placeholder:text-white/30"
                 placeholder="Email"
               />
@@ -172,8 +175,8 @@ function EarlyCardPage() {
                 </button>
               </div>
               <textarea
-                value={quote}
-                onChange={(e) => setQuote(e.target.value)}
+                ref={quoteRef}
+                defaultValue={BASE_AGENT_PROMPT}
                 rows={3}
                 className="w-full resize-none bg-transparent text-sm leading-6 text-white outline-none placeholder:text-white/30"
                 placeholder="Share your thought on AI agents on Base"
@@ -185,7 +188,7 @@ function EarlyCardPage() {
                 <div>
                   <p className="text-sm font-semibold text-white">Mint Early Supporter Pass on Base</p>
                   <p className="mt-1 text-xs text-white/45">
-                    Mint unlocks after the social tasks are completed and your email is entered.
+                    Mint unlocks after the social tasks are completed. Enter your email before minting.
                   </p>
                 </div>
                 <button
