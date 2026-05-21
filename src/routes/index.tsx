@@ -16,16 +16,14 @@ function Landing() {
             <span className="font-serif-display text-2xl">0cta</span>
           </Link>
           <nav className="flex items-center gap-6 text-sm opacity-80">
-            <a className="px-3 py-2 rounded-full hover:bg-white/5">Home</a>
-            <a className="px-3 py-2 rounded-full hover:bg-white/5">DeFi App</a>
-            <a className="px-3 py-2 rounded-full hover:bg-white/5">Assets</a>
-            <a className="px-3 py-2 rounded-full hover:bg-white/5">Features</a>
-            <a className="px-3 py-2 rounded-full hover:bg-white/5">Pricing</a>
-            <a className="px-3 py-2 rounded-full hover:bg-white/5">FAQ</a>
+            <Link to="/" className="px-3 py-2 rounded-full hover:bg-white/5">Home</Link>
+            <Link to="/dashboard" className="px-3 py-2 rounded-full hover:bg-white/5">Dashboard</Link>
+            <Link to="/buy" className="px-3 py-2 rounded-full hover:bg-white/5">Buy $OCTA</Link>
+            <Link to="/settings" className="px-3 py-2 rounded-full hover:bg-white/5">Settings</Link>
           </nav>
           <div className="flex items-center gap-4">
             <WalletConnect />
-            <button className="px-4 py-2 rounded-full border border-white/10">Create Account</button>
+            <Link to="/dashboard" className="px-4 py-2 rounded-full border border-white/10">Open Workspace</Link>
           </div>
         </div>
       </header>
@@ -38,7 +36,7 @@ function Landing() {
             <p className="mt-6 text-lg opacity-80">Dive into the art assets, where innovative blockchain technology meets financial expertise</p>
             <div className="mt-8 flex items-center justify-center gap-4">
               <Link to="/dashboard" className="px-6 py-3 rounded-full bg-white text-black">Open App</Link>
-              <button className="px-6 py-3 rounded-full border border-white/20">Discover More</button>
+              <Link to="/buy" className="px-6 py-3 rounded-full border border-white/20">Top Up Tokens</Link>
             </div>
           </div>
         </div>

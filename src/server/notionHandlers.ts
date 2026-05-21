@@ -1,4 +1,4 @@
-import jsonDb from '../lib/jsonDb';
+import { appRepository } from "../lib/storage";
 
 const NOTION_AUTHORIZE = 'https://www.notion.com/oauth2/v2/authorize';
 const NOTION_TOKEN = 'https://www.notion.com/oauth2/v2/token';
@@ -16,7 +16,7 @@ export async function notionStart(request: Request) {
     state,
   });
   // store state in DB for later verification
-  await jsonDb.pushTask({ type: 'notion_oauth_state', state, createdAt: new Date().toISOString() });
+  await appRepository.appendTask({ type: 'notion_oauth_state', text: state, state, createdAt: new Date().toISOString() });
   return Response.redirect(`${NOTION_AUTHORIZE}?${qs.toString()}`);
 }
 
@@ -42,7 +42,7 @@ export async function notionCallback(request: Request) {
     const tokenRes = await fetch(NOTION_TOKEN, { method: 'POST', body });
     const tokenJson = await tokenRes.json();
 
-    await jsonDb.pushTask({ type: 'notion_token', token: tokenJson, state, createdAt: new Date().toISOString() });
+    await appRepository.appendTask({ type: 'notion_token', text: 'Notion OAuth token stored', token: tokenJson, state, createdAt: new Date().toISOString() });
 
     return new Response('<html><body><h1>Notion connected — you can close this window.</h1></body></html>', { headers: { 'content-type': 'text/html' } });
   } catch (e) {

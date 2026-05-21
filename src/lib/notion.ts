@@ -1,4 +1,4 @@
-import jsonDb from './jsonDb';
+import { appRepository } from "./storage";
 
 const NOTION_TOKEN = (import.meta.env && (import.meta.env.VITE_NOTION_TOKEN as string)) || (process && (process.env.NOTION_TOKEN as string));
 const NOTION_DB = (import.meta.env && (import.meta.env.VITE_NOTION_DATABASE_ID as string)) || (process && (process.env.NOTION_DATABASE_ID as string));
@@ -6,7 +6,7 @@ const NOTION_DB = (import.meta.env && (import.meta.env.VITE_NOTION_DATABASE_ID a
 export async function pushToNotion(task: Record<string, unknown>) {
   if (!NOTION_TOKEN || !NOTION_DB) {
     // Fallback: store locally in JSON DB
-    await jsonDb.pushTask({ via: 'fallback', ...task, createdAt: new Date().toISOString() });
+    await appRepository.appendTask({ type: "notion_fallback", via: 'fallback', ...task, createdAt: new Date().toISOString() });
     return { ok: true, fallback: true };
   }
 
@@ -32,14 +32,14 @@ export async function pushToNotion(task: Record<string, unknown>) {
       const text = await res.text();
       console.error('Notion API error', res.status, text);
       // fallback
-      await jsonDb.pushTask({ via: 'notion-error', status: res.status, body: text, ...task });
+      await appRepository.appendTask({ type: "notion_error", via: 'notion-error', status: res.status, body: text, ...task, createdAt: new Date().toISOString() });
       return { ok: false, status: res.status };
     }
     const json = await res.json();
     return { ok: true, result: json };
   } catch (e) {
     console.error('pushToNotion error', e);
-    await jsonDb.pushTask({ via: 'notion-exception', error: String(e), ...task });
+    await appRepository.appendTask({ type: "notion_exception", via: 'notion-exception', error: String(e), ...task, createdAt: new Date().toISOString() });
     return { ok: false, error: String(e) };
   }
 }

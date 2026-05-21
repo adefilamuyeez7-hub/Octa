@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import jsonDb from "../lib/jsonDb";
+import { appRepository } from "../lib/storage";
 
 export const Route = createFileRoute('/buy')({ component: BuyPage, head: () => ({ meta: [{ title: 'Buy $OCTA' }] }) });
 
@@ -10,7 +10,7 @@ function BuyPage() {
 
   const buy = async () => {
     setLoading(true);
-    await jsonDb.pushTask({ type: 'purchase', amount, createdAt: new Date().toISOString() });
+    await appRepository.appendTask({ type: 'purchase', amount, createdAt: new Date().toISOString() });
     setLoading(false);
     alert(`Simulated purchase of ${amount} $OCTA recorded`);
   };

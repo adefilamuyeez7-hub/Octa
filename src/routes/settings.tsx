@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import jsonDb from "../lib/jsonDb";
+import { appRepository } from "../lib/storage";
 
 export const Route = createFileRoute('/settings')({
   component: SettingsPage,
@@ -15,16 +15,16 @@ function SettingsPage() {
 
   useEffect(() => {
     (async () => {
-      const s = await jsonDb.getSettings();
-      setSiteName((s.siteName as string) ?? '0cta');
-      setTokenEnabled((s.tokenEnabled as boolean) ?? true);
-      setWalletEnabled((s.walletEnabled as boolean) ?? true);
+      const s = await appRepository.getSettings();
+      setSiteName(s.siteName ?? '0cta');
+      setTokenEnabled(s.tokenEnabled ?? true);
+      setWalletEnabled(s.walletEnabled ?? true);
       setLoading(false);
     })();
   }, []);
 
   const save = async () => {
-    await jsonDb.setSettings({ siteName, tokenEnabled, walletEnabled });
+    await appRepository.setSettings({ siteName, tokenEnabled, walletEnabled });
     alert('Settings saved locally');
   };
 
@@ -33,6 +33,7 @@ function SettingsPage() {
   return (
     <div className="p-8 max-w-2xl">
       <h1 className="text-2xl font-semibold mb-4">Settings</h1>
+      <p className="text-sm mb-4 text-slate-600">These settings are stored in local browser storage for now.</p>
       <div className="space-y-4">
         <label className="block">
           <div className="text-sm mb-1">Site name</div>

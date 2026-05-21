@@ -59,7 +59,6 @@ export interface FileRouteTypes {
   fullPaths: '/' | '/dashboard' | '/settings' | '/buy'
   fileRoutesByTo: FileRoutesByTo
   to: '/' | '/dashboard' | '/settings' | '/buy'
-  id: '__root__' | '/' | '/dashboard'
   id: '__root__' | '/' | '/dashboard' | '/settings' | '/buy'
   fileRoutesById: FileRoutesById
 }
@@ -84,6 +83,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/buy': {
+      id: '/buy'
+      path: '/buy'
+      fullPath: '/buy'
+      preLoaderRoute: typeof BuyRouteImport
       parentRoute: typeof rootRouteImport
     }
   }

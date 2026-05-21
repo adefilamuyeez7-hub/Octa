@@ -1,12 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
-import notion from "../lib/notion";
-import jsonDb from "../lib/jsonDb";
+import { useEffect, useState } from "react";
 import {
   Users, ListChecks, Wallet, Coins, Settings,
   Search, ChevronRight, MoreHorizontal, ChevronDown, SlidersHorizontal,
   Send, Sparkles, Mail, FileText, CheckCircle2, Flame, Bot, ArrowUpRight,
-  X, TrendingUp, Plus,
+  X, TrendingUp, Plus, ShieldCheck,
 } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({
@@ -14,7 +12,8 @@ export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "0cta — Dashboard" }] }),
 });
 
-type Section = "people" | "agent" | "tasks" | "payroll" | "token";
+type Section = "people" | "agent" | "tasks" | "payroll" | "token" | "admin";
+type NotionStatus = { oauthReady: boolean; databaseReady: boolean; connected: boolean };
 
 type Worker = {
   name: string; role: string; projects: number; done: number; progress: number;
@@ -33,6 +32,31 @@ const team: Worker[] = [
 function Dashboard() {
   const [section, setSection] = useState<Section>("agent");
   const [reviewing, setReviewing] = useState<Worker | null>(null);
+  const [notionStatus, setNotionStatus] = useState<NotionStatus>({ oauthReady: false, databaseReady: false, connected: false });
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const response = await fetch("/api/notion/status");
+        if (!response.ok) return;
+        const payload = (await response.json()) as Partial<NotionStatus>;
+        if (active) {
+          setNotionStatus({
+            oauthReady: Boolean(payload.oauthReady),
+            databaseReady: Boolean(payload.databaseReady),
+            connected: Boolean(payload.connected),
+          });
+        }
+      } catch (error) {
+        console.error("notion status error", error);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <div
@@ -49,10 +73,11 @@ function Dashboard() {
         <Sidebar section={section} setSection={setSection} />
         <main className="col-span-12 md:col-span-7 p-6 md:p-8 min-h-[820px]">
           {section === "people" && <PeoplePanel onReview={setReviewing} />}
-          {section === "agent" && <AgentPanel />}
-          {section === "tasks" && <TasksPanel />}
+          {section === "agent" && <AgentPanel notionStatus={notionStatus} />}
+          {section === "tasks" && <TasksPanel notionStatus={notionStatus} />}
           {section === "payroll" && <PayrollPanel />}
           {section === "token" && <TokenPanel />}
+          {section === "admin" && <AdminPanel notionStatus={notionStatus} />}
         </main>
         <RightRail />
       </div>
@@ -69,6 +94,7 @@ function Sidebar({ section, setSection }: { section: Section; setSection: (s: Se
     { id: "tasks" as const, icon: ListChecks, label: "Tasks · Notion" },
     { id: "payroll" as const, icon: Wallet, label: "Payroll" },
     { id: "token" as const, icon: Coins, label: "Token" },
+    { id: "admin" as const, icon: ShieldCheck, label: "Admin onboarding" },
   ];
   return (
     <aside className="col-span-12 md:col-span-2 p-6 border-r" style={{ borderColor: "var(--dash-border)" }}>
@@ -93,10 +119,10 @@ function Sidebar({ section, setSection }: { section: Section; setSection: (s: Se
             </button>
           );
         })}
-        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-left"
-                style={{ color: "var(--dash-muted)" }}>
+        <Link to="/settings" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-left"
+              style={{ color: "var(--dash-muted)" }}>
           <Settings className="size-4" /> Settings
-        </button>
+        </Link>
       </nav>
 
       <div className="mt-10 p-4 rounded-2xl" style={{ background: "var(--dash-blue-soft)" }}>
@@ -208,15 +234,17 @@ function Crumb({ label, parent }: { label: string; parent: string }) {
 
 type Msg = { from: "you" | "agent"; text: string; meta?: string };
 
-function AgentPanel() {
+function AgentPanel({ notionStatus }: { notionStatus: NotionStatus }) {
   const [input, setInput] = useState("");
+  const [isRunning, setIsRunning] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([
     { from: "agent", text: "Morning Veya. I drafted Kevin's Q3 review and queued 3 onboarding tasks in Notion. Want me to proceed or revise?", meta: "Burned 18 $OCTA · 2 min ago" },
     { from: "you", text: "Proceed, but flag Lissa — productivity dropped 12% this week. Schedule a 1:1." },
     { from: "agent", text: "Done. 1:1 with Lissa booked Thursday 3pm, prep doc started in Notion. I'll monitor next 7 days and ping if no recovery.", meta: "Burned 7 $OCTA · just now" },
   ]);
 
-  const send = () => {
+  const send = () => {};
+  /*
     if (!input.trim()) return;
     setMessages([
       ...messages,
@@ -234,6 +262,50 @@ function AgentPanel() {
       }
     })();
   };
+  */
+
+  const runAgent = async () => {
+    const message = input.trim();
+    if (!message || isRunning) return;
+
+    const nextMessages: Msg[] = [...messages, { from: "you", text: message }];
+    setMessages(nextMessages);
+    setInput("");
+    setIsRunning(true);
+
+    try {
+      const response = await fetch("/api/agent/run", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          message,
+          history: nextMessages.map((entry) => ({ from: entry.from, text: entry.text })),
+        }),
+      });
+
+      const payload = await response.json();
+      setMessages((current) => [
+        ...current,
+        {
+          from: "agent",
+          text: typeof payload.reply === "string" ? payload.reply : "The agent returned an unexpected response.",
+          meta: typeof payload.meta === "string" ? payload.meta : undefined,
+        },
+      ]);
+    } catch (e) {
+      console.error("agent request error", e);
+      setMessages((current) => [
+        ...current,
+        {
+          from: "agent",
+          text: `On it - running "${message.slice(0, 60)}${message.length > 60 ? "..." : ""}". I could not reach the live agent endpoint.`,
+          meta: "Request failed before server processing",
+        },
+      ]);
+    } finally {
+      setIsRunning(false);
+    }
+  };
 
   const quick = [
     "Hire a Senior Backend Engineer in Lisbon, €85k",
@@ -247,12 +319,15 @@ function AgentPanel() {
       <Crumb label="Conversation" parent="Agent" />
       <h1 className="font-serif-display text-4xl mb-2" style={{ fontWeight: 600 }}>What should 0cta do?</h1>
       <p className="text-sm mb-6" style={{ color: "var(--dash-muted)" }}>Plain text in. Hires, payroll, reviews and Notion updates out.</p>
+      <p className="text-xs mb-4" style={{ color: "var(--dash-muted)" }}>
+        Live mode uses <code>MOLTBOT_WEBHOOK_URL</code>. Notion logging is {notionStatus.connected ? "connected" : "not connected"}.
+      </p>
 
       <div className="rounded-2xl p-4 mb-4" style={{ background: "var(--dash-blue-soft)", border: "1px solid var(--dash-border)" }}>
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send(); }}
+          onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) runAgent(); }}
           placeholder="e.g. Hire Maya Chen as Senior PM in Berlin, €78k, reports to me. Send offer, push to Notion, queue payroll."
           rows={3}
           className="w-full bg-transparent text-sm resize-none focus:outline-none placeholder:opacity-50"
@@ -262,11 +337,12 @@ function AgentPanel() {
             <Flame className="size-3" /> est. burn ~{Math.max(5, Math.ceil(input.length / 20))} $OCTA · ⌘+Enter to send
           </div>
           <button
-            onClick={send}
+            onClick={runAgent}
+            disabled={isRunning}
             className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-white"
-            style={{ background: "var(--dash-blue)" }}
+            style={{ background: "var(--dash-blue)", opacity: isRunning ? 0.7 : 1 }}
           >
-            <Send className="size-3.5" /> Run
+            <Send className="size-3.5" /> {isRunning ? "Running..." : "Run"}
           </button>
         </div>
       </div>
@@ -310,7 +386,62 @@ function AgentPanel() {
   );
 }
 
-function TasksPanel() {
+function AdminPanel({ notionStatus }: { notionStatus: NotionStatus }) {
+  const steps = [
+    { title: "Create admin workspace", detail: "Set up your HR home and invite the first team leads.", done: true },
+    { title: "Connect Notion", detail: "Link Notion so 0cta can sync tasks, reviews, and hires.", done: notionStatus.connected },
+    { title: "Configure $OCTA rules", detail: "Set burn policy, approvals, and payroll automation.", done: false },
+    { title: "Enable wallet usage", detail: "Connect token payment and admin wallet approval flows.", done: true },
+    { title: "Invite first admins", detail: "Add lead users and assign admin roles.", done: false },
+  ];
+
+  const connectNotion = () => {
+    window.location.href = "/api/notion/start?redirect=/dashboard";
+  };
+
+  return (
+    <>
+      <Crumb label="Launch checklist" parent="Admin" />
+      <div className="flex flex-col gap-6">
+        <div className="rounded-3xl p-6" style={{ background: "var(--dash-surface)", border: "1px solid var(--dash-border)" }}>
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <h1 className="font-serif-display text-4xl" style={{ fontWeight: 600 }}>Admin onboarding</h1>
+              <p className="text-sm mt-1" style={{ color: "var(--dash-muted)" }}>
+                Walk through the first setup steps for your admin team, connect Notion, and enable token workflows.
+                {!notionStatus.oauthReady ? " Add Notion env vars on Vercel before connecting." : ""}
+              </p>
+            </div>
+            <button
+              onClick={connectNotion}
+              disabled={!notionStatus.oauthReady}
+              className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-white"
+              style={{ background: "var(--dash-blue)", opacity: notionStatus.oauthReady ? 1 : 0.6 }}
+            >
+              <ShieldCheck className="size-4" /> {notionStatus.connected ? "Reconnect Notion" : "Connect Notion"}
+            </button>
+          </div>
+        </div>
+
+        <div className="grid gap-4">
+          {steps.map((step) => (
+            <div key={step.title} className="rounded-2xl p-5 flex items-start gap-4" style={{ background: "var(--dash-surface)", border: "1px solid var(--dash-border)" }}>
+              <div className="size-9 rounded-2xl grid place-items-center" style={{ background: step.done ? "var(--dash-blue-soft)" : "var(--dash-blue-soft)", color: step.done ? "var(--dash-blue)" : "var(--dash-muted)" }}>
+                {step.done ? "✓" : "…"}
+              </div>
+              <div>
+                <p className="font-semibold">{step.title}</p>
+                <p className="text-sm mt-1" style={{ color: "var(--dash-muted)" }}>{step.detail}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function TasksPanel({ notionStatus }: { notionStatus: NotionStatus }) {
   const cols = [
     { name: "Queued", color: "var(--dash-blue-soft)", tasks: [
       { t: "Onboard Maya Chen — kit + access", who: "Auto · 0cta", db: "People" },
@@ -326,19 +457,44 @@ function TasksPanel() {
       { t: "Generated 12 offer letters", who: "Closed Tue", db: "Hiring" },
     ]},
   ];
+
+  const createTask = async () => {
+    const text = window.prompt("Task to create");
+    if (!text?.trim()) return;
+
+    try {
+      await fetch("/api/tasks/create", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ text: text.trim() }),
+      });
+      window.alert("Task submitted.");
+    } catch (error) {
+      console.error("task create error", error);
+      window.alert("Task request failed.");
+    }
+  };
   return (
     <>
       <Crumb label="Notion sync" parent="Tasks" />
-      <div className="flex items-end justify-between mb-6">
+      <div className="flex items-end justify-between mb-6 gap-3 flex-wrap">
         <div>
           <h1 className="font-serif-display text-4xl" style={{ fontWeight: 600 }}>Tasks</h1>
           <p className="text-sm mt-1" style={{ color: "var(--dash-muted)" }}>Auto-pushed to Notion · workspace <span className="font-medium" style={{ color: "var(--dash-ink)" }}>0cta HR</span></p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full" style={{ background: "oklch(0.95 0.04 150)", color: "oklch(0.4 0.1 150)" }}>
-            <span className="size-1.5 rounded-full bg-green-600" /> Notion connected
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full" style={{ background: notionStatus.connected ? "oklch(0.95 0.04 150)" : "var(--dash-blue-soft)", color: notionStatus.connected ? "oklch(0.4 0.1 150)" : "var(--dash-muted)" }}>
+            <span className={`size-1.5 rounded-full ${notionStatus.connected ? "bg-green-600" : "bg-amber-500"}`} /> {notionStatus.connected ? "Notion connected" : notionStatus.oauthReady ? "Notion auth ready" : "Notion not configured"}
           </span>
-          <button className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full text-white" style={{ background: "var(--dash-blue)" }}>
+          <button
+            onClick={() => { window.location.href = "/api/notion/start?redirect=/dashboard"; }}
+            disabled={!notionStatus.oauthReady}
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full text-white"
+            style={{ background: "var(--dash-blue)", opacity: notionStatus.oauthReady ? 1 : 0.6 }}
+          >
+            <ShieldCheck className="size-3" /> Reconnect Notion
+          </button>
+          <button onClick={createTask} className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full text-white" style={{ background: "var(--dash-blue)" }}>
             <Plus className="size-3" /> New task
           </button>
         </div>
@@ -487,8 +643,8 @@ function TokenPanel() {
           <div><p className="opacity-60">Earned (PRs + SBT)</p><p className="text-lg font-bold mt-0.5">+8,400</p></div>
         </div>
         <div className="flex gap-2 mt-6">
-          <button className="flex-1 rounded-full bg-white text-sm py-2.5 font-medium" style={{ color: "var(--dash-blue)" }}>Top up</button>
-          <button className="flex-1 rounded-full text-sm py-2.5 font-medium" style={{ background: "rgba(255,255,255,0.15)" }}>Claim rewards</button>
+          <Link to="/buy" className="flex-1 rounded-full bg-white text-sm py-2.5 font-medium text-center" style={{ color: "var(--dash-blue)" }}>Top up</Link>
+          <button disabled className="flex-1 rounded-full text-sm py-2.5 font-medium opacity-70 cursor-not-allowed" style={{ background: "rgba(255,255,255,0.15)" }}>Claim rewards soon</button>
         </div>
       </div>
 
@@ -550,6 +706,22 @@ function ReviewDrawer({ worker, onClose }: { worker: Worker; onClose: () => void
     { t: "Mobile checkout audit", status: "In progress", pct: 45 },
     { t: "Brand refresh proposal", status: "Blocked", pct: 20 },
   ];
+
+  const sendReview = async () => {
+    const text = `${worker.name} review: productivity ${worker.productivity}%, rating ${worker.rating}, tasks this week ${worker.tasksThisWeek}.`;
+    try {
+      await fetch("/api/tasks/create", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ title: `${worker.name} review`, text }),
+      });
+      window.alert("Review submitted.");
+    } catch (error) {
+      console.error("review submit error", error);
+      window.alert("Review request failed.");
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(20,30,80,0.35)" }} onClick={onClose}>
       <div className="w-full max-w-[480px] h-full overflow-y-auto p-6" style={{ background: "var(--dash-surface)" }} onClick={(e) => e.stopPropagation()}>
@@ -592,8 +764,8 @@ function ReviewDrawer({ worker, onClose }: { worker: Worker; onClose: () => void
         </div>
 
         <div className="flex gap-2">
-          <button className="flex-1 rounded-full py-2.5 text-sm text-white font-medium" style={{ background: "var(--dash-blue)" }}>Send review to Notion</button>
-          <button className="rounded-full py-2.5 px-4 text-sm" style={{ background: "var(--dash-blue-soft)", color: "var(--dash-blue)" }}>1:1</button>
+          <button onClick={sendReview} className="flex-1 rounded-full py-2.5 text-sm text-white font-medium" style={{ background: "var(--dash-blue)" }}>Send review to Notion</button>
+          <button onClick={() => window.alert(`Schedule a 1:1 with ${worker.name} from your calendar workflow.`)} className="rounded-full py-2.5 px-4 text-sm" style={{ background: "var(--dash-blue-soft)", color: "var(--dash-blue)" }}>1:1</button>
         </div>
       </div>
     </div>

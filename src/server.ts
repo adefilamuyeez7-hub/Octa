@@ -67,6 +67,7 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
 }
 
 import { notionStart, notionCallback } from './server/notionHandlers';
+import { agentRun } from "./server/agentHandlers";
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
@@ -77,6 +78,9 @@ export default {
       }
       if (url.pathname.startsWith('/api/notion/callback')) {
         return notionCallback(request);
+      }
+      if (url.pathname.startsWith("/api/agent/run")) {
+        return agentRun(request);
       }
 
       const handler = await getServerEntry();
