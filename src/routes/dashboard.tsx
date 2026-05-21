@@ -6,6 +6,7 @@ import {
   Send, Sparkles, Mail, FileText, CheckCircle2, Flame, Bot, ArrowUpRight,
   X, TrendingUp, Plus, ShieldCheck,
 } from "lucide-react";
+import { appRepository, type AppUserRecord, type TaskRecord } from "../lib/storage";
 
 export const Route = createFileRoute("/dashboard")({
   component: Dashboard,
@@ -20,24 +21,58 @@ type Worker = {
   productivity: number; dim?: boolean; salary: number; tasksThisWeek: number; rating: number;
 };
 
-const team: Worker[] = [
-  { name: "James Smith", role: "Middle UI/UX", projects: 22, done: 18, progress: 3, productivity: 65, salary: 5400, tasksThisWeek: 8, rating: 4.2 },
-  { name: "Kevin Kim", role: "Senior Graphic", projects: 85, done: 80, progress: 2, productivity: 80, salary: 7200, tasksThisWeek: 12, rating: 4.7 },
-  { name: "Lissa Shulz", role: "Junior Graphic", projects: 7, done: 5, progress: 1, productivity: 40, salary: 3200, tasksThisWeek: 5, rating: 3.6 },
-  { name: "Jaspal Cortes", role: "Junior UI/UX", projects: 7, done: 6, progress: 1, productivity: 55, salary: 3400, tasksThisWeek: 4, rating: 3.9, dim: true },
-  { name: "Elliot Morrison", role: "Senior UI/UX", projects: 133, done: 130, progress: 3, productivity: 92, salary: 7800, tasksThisWeek: 14, rating: 4.9, dim: true },
-  { name: "Jace O'Quinn", role: "Middle Graphic", projects: 45, done: 40, progress: 3, productivity: 70, salary: 5100, tasksThisWeek: 9, rating: 4.1, dim: true },
-];
+function numberFromRecord(record: AppUserRecord, key: string, fallback: number): number {
+  const value = record[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function userToWorker(user: AppUserRecord, tasks: TaskRecord[]): Worker {
+  const userTasks = tasks.filter((task) => task.userId === user.id || task.assigneeId === user.id || task.assignee === user.name);
+  const done = userTasks.filter((task) => task.status === "done" || task.status === "completed").length;
+  const projects = Math.max(userTasks.length, numberFromRecord(user, "projects", 0));
+  const progress = Math.max(projects - done, 0);
+  const productivity = projects > 0 ? Math.round((done / projects) * 100) : numberFromRecord(user, "productivity", 0);
+
+  return {
+    name: user.name,
+    role: user.role ?? "Team member",
+    projects,
+    done,
+    progress,
+    productivity,
+    salary: numberFromRecord(user, "salary", 0),
+    tasksThisWeek: userTasks.length,
+    rating: numberFromRecord(user, "rating", 0),
+  };
+}
+
+function taskTitle(task: TaskRecord): string {
+  return task.title || task.text || task.type.replace(/_/g, " ");
+}
 
 function Dashboard() {
   const [section, setSection] = useState<Section>("agent");
   const [reviewing, setReviewing] = useState<Worker | null>(null);
   const [notionStatus, setNotionStatus] = useState<NotionStatus>({ oauthReady: false, databaseReady: false, connected: false });
+  const [users, setUsers] = useState<AppUserRecord[]>([]);
+  const [tasks, setTasks] = useState<TaskRecord[]>([]);
+
+  const refreshData = async () => {
+    const db = await appRepository.readDb();
+    setUsers(db.users);
+    setTasks(db.tasks);
+  };
 
   useEffect(() => {
     let active = true;
     (async () => {
       try {
+        const db = await appRepository.readDb();
+        if (active) {
+          setUsers(db.users);
+          setTasks(db.tasks);
+        }
+
         const response = await fetch("/api/notion/status");
         if (!response.ok) return;
         const payload = (await response.json()) as Partial<NotionStatus>;
@@ -58,6 +93,8 @@ function Dashboard() {
     };
   }, []);
 
+  const team = users.map((user) => userToWorker(user, tasks));
+
   return (
     <div
       className="min-h-screen p-4 md:p-8"
@@ -70,24 +107,25 @@ function Dashboard() {
 
       <div className="relative mx-auto max-w-[1400px] grid grid-cols-12 gap-4 rounded-[28px] shadow-[0_30px_80px_-30px_rgba(60,80,180,0.25)] overflow-hidden"
            style={{ background: "var(--dash-surface)" }}>
-        <Sidebar section={section} setSection={setSection} />
+        <Sidebar section={section} setSection={setSection} tasks={tasks} />
         <main className="col-span-12 md:col-span-7 p-6 md:p-8 min-h-[820px]">
-          {section === "people" && <PeoplePanel onReview={setReviewing} />}
+          {section === "people" && <PeoplePanel team={team} onReview={setReviewing} />}
           {section === "agent" && <AgentPanel notionStatus={notionStatus} />}
-          {section === "tasks" && <TasksPanel notionStatus={notionStatus} />}
-          {section === "payroll" && <PayrollPanel />}
-          {section === "token" && <TokenPanel />}
+          {section === "tasks" && <TasksPanel notionStatus={notionStatus} tasks={tasks} onDataChange={refreshData} />}
+          {section === "payroll" && <PayrollPanel team={team} />}
+          {section === "token" && <TokenPanel tasks={tasks} />}
           {section === "admin" && <AdminPanel notionStatus={notionStatus} />}
         </main>
-        <RightRail />
+        <RightRail team={team} tasks={tasks} />
       </div>
 
-      {reviewing && <ReviewDrawer worker={reviewing} onClose={() => setReviewing(null)} />}
+      {reviewing && <ReviewDrawer worker={reviewing} tasks={tasks} onClose={() => setReviewing(null)} />}
     </div>
   );
 }
 
-function Sidebar({ section, setSection }: { section: Section; setSection: (s: Section) => void }) {
+function Sidebar({ section, setSection, tasks }: { section: Section; setSection: (s: Section) => void; tasks: TaskRecord[] }) {
+  const burnedToday = tasks.filter((task) => task.type.includes("agent") || task.type.includes("notion")).length;
   const nav = [
     { id: "agent" as const, icon: Sparkles, label: "AI Agent" },
     { id: "people" as const, icon: Users, label: "People" },
@@ -130,26 +168,26 @@ function Sidebar({ section, setSection }: { section: Section; setSection: (s: Se
           <Flame className="size-4" style={{ color: "var(--dash-blue)" }} />
           <span className="text-xs font-semibold">Today's burn</span>
         </div>
-        <p className="text-2xl font-bold" style={{ color: "var(--dash-blue)" }}>4,218</p>
-        <p className="text-[11px]" style={{ color: "var(--dash-muted)" }}>$OCTA used by agents</p>
+        <p className="text-2xl font-bold" style={{ color: "var(--dash-blue)" }}>{burnedToday}</p>
+        <p className="text-[11px]" style={{ color: "var(--dash-muted)" }}>agent actions logged</p>
       </div>
     </aside>
   );
 }
 
-function PeoplePanel({ onReview }: { onReview: (w: Worker) => void }) {
+function PeoplePanel({ team, onReview }: { team: Worker[]; onReview: (w: Worker) => void }) {
   return (
     <>
-      <Crumb label="Design Team" parent="People" />
+      <Crumb label="Team" parent="People" />
       <div className="flex items-center justify-between mb-8">
-        <h1 className="font-serif-display text-4xl" style={{ fontWeight: 600 }}>Design Team</h1>
+        <h1 className="font-serif-display text-4xl" style={{ fontWeight: 600 }}>People</h1>
         <div className="flex items-center gap-3 rounded-full px-3 py-2 shadow-sm" style={{ background: "var(--dash-surface)", border: "1px solid var(--dash-border)" }}>
           <div className="flex -space-x-2">
             {[0,1,2].map(i => (
               <div key={i} className="size-7 rounded-full border-2" style={{ borderColor: "var(--dash-surface)", background: `oklch(0.${7+i} 0.1 ${260+i*20})` }} />
             ))}
           </div>
-          <span className="text-sm font-medium pr-2">20</span>
+          <span className="text-sm font-medium pr-2">{team.length}</span>
         </div>
       </div>
 
@@ -165,13 +203,22 @@ function PeoplePanel({ onReview }: { onReview: (w: Worker) => void }) {
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        {team.map((p) => <PersonCard key={p.name} worker={p} onClick={() => onReview(p)} />)}
-      </div>
+      {team.length > 0 ? (
+        <>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {team.map((p) => <PersonCard key={p.name} worker={p} onClick={() => onReview(p)} />)}
+          </div>
 
-      <p className="text-xs mt-6 text-center" style={{ color: "var(--dash-muted)" }}>
-        Click a card to open agent review & task breakdown
-      </p>
+          <p className="text-xs mt-6 text-center" style={{ color: "var(--dash-muted)" }}>
+            Click a card to open agent review & task breakdown
+          </p>
+        </>
+      ) : (
+        <EmptyState
+          title="No people yet"
+          detail="Add users through the local data repository or connect a people source before this panel shows team metrics."
+        />
+      )}
     </>
   );
 }
@@ -223,6 +270,15 @@ function Stat({ label, value }: { label: string; value: number | string }) {
   );
 }
 
+function EmptyState({ title, detail }: { title: string; detail: string }) {
+  return (
+    <div className="rounded-2xl p-6 text-sm" style={{ background: "var(--dash-surface)", border: "1px solid var(--dash-border)" }}>
+      <p className="font-semibold">{title}</p>
+      <p className="mt-1" style={{ color: "var(--dash-muted)" }}>{detail}</p>
+    </div>
+  );
+}
+
 function Crumb({ label, parent }: { label: string; parent: string }) {
   return (
     <div className="flex items-center gap-2 text-xs mb-6 px-4 py-2.5 rounded-full"
@@ -238,31 +294,8 @@ function AgentPanel({ notionStatus }: { notionStatus: NotionStatus }) {
   const [input, setInput] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([
-    { from: "agent", text: "Morning Veya. I drafted Kevin's Q3 review and queued 3 onboarding tasks in Notion. Want me to proceed or revise?", meta: "Burned 18 $OCTA · 2 min ago" },
-    { from: "you", text: "Proceed, but flag Lissa — productivity dropped 12% this week. Schedule a 1:1." },
-    { from: "agent", text: "Done. 1:1 with Lissa booked Thursday 3pm, prep doc started in Notion. I'll monitor next 7 days and ping if no recovery.", meta: "Burned 7 $OCTA · just now" },
+    { from: "agent", text: "Tell me the HR workflow you want handled. I can log the request locally and sync to Notion when connected.", meta: "Ready" },
   ]);
-
-  const send = () => {};
-  /*
-    if (!input.trim()) return;
-    setMessages([
-      ...messages,
-      { from: "you", text: input },
-      { from: "agent", text: `On it — running "${input.slice(0, 60)}${input.length > 60 ? "…" : ""}". Will route outputs to Notion and notify you.`, meta: `Burned ${Math.floor(Math.random() * 20 + 5)} $OCTA · just now` },
-    ]);
-    setInput("");
-    // push task to Notion (or fallback to local JSON DB)
-    (async () => {
-      try {
-        await notion.pushToNotion({ text: input });
-        await jsonDb.pushTask({ text: input, createdAt: new Date().toISOString() });
-      } catch (e) {
-        console.error('task push error', e);
-      }
-    })();
-  };
-  */
 
   const runAgent = async () => {
     const message = input.trim();
@@ -308,10 +341,10 @@ function AgentPanel({ notionStatus }: { notionStatus: NotionStatus }) {
   };
 
   const quick = [
-    "Hire a Senior Backend Engineer in Lisbon, €85k",
-    "Run payroll for August with bonuses",
-    "Review Kevin Kim's last 30 days",
-    "Draft offboarding for Jaspal",
+    "Create onboarding tasks for a new hire",
+    "Run payroll review for this month",
+    "Draft a performance review",
+    "Prepare an offboarding checklist",
   ];
 
   return (
@@ -328,13 +361,13 @@ function AgentPanel({ notionStatus }: { notionStatus: NotionStatus }) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) runAgent(); }}
-          placeholder="e.g. Hire Maya Chen as Senior PM in Berlin, €78k, reports to me. Send offer, push to Notion, queue payroll."
+          placeholder="e.g. Create onboarding tasks for a new product manager, push the checklist to Notion, and queue payroll setup."
           rows={3}
           className="w-full bg-transparent text-sm resize-none focus:outline-none placeholder:opacity-50"
         />
         <div className="flex items-center justify-between mt-2">
           <div className="flex items-center gap-2 text-[11px]" style={{ color: "var(--dash-muted)" }}>
-            <Flame className="size-3" /> est. burn ~{Math.max(5, Math.ceil(input.length / 20))} $OCTA · ⌘+Enter to send
+            <Flame className="size-3" /> est. actions ~{Math.max(1, Math.ceil(input.length / 80))} · Ctrl/Command+Enter to send
           </div>
           <button
             onClick={runAgent}
@@ -441,21 +474,14 @@ function AdminPanel({ notionStatus }: { notionStatus: NotionStatus }) {
   );
 }
 
-function TasksPanel({ notionStatus }: { notionStatus: NotionStatus }) {
+function TasksPanel({ notionStatus, tasks, onDataChange }: { notionStatus: NotionStatus; tasks: TaskRecord[]; onDataChange: () => Promise<void> }) {
+  const queuedTasks = tasks.filter((task) => task.status !== "done" && task.status !== "completed");
+  const completedTasks = tasks.filter((task) => task.status === "done" || task.status === "completed");
+  const notionTasks = tasks.filter((task) => String(task.via ?? "").includes("notion") || task.type.includes("notion"));
   const cols = [
-    { name: "Queued", color: "var(--dash-blue-soft)", tasks: [
-      { t: "Onboard Maya Chen — kit + access", who: "Auto · 0cta", db: "People" },
-      { t: "Q3 review prep — Kevin Kim", who: "Auto · 0cta", db: "Reviews" },
-    ]},
-    { name: "In Notion", color: "oklch(0.95 0.04 150)", tasks: [
-      { t: "Offer letter — Senior Backend, Lisbon", who: "Synced 2m ago", db: "Hiring" },
-      { t: "Payroll August — preview", who: "Synced 14m ago", db: "Payroll" },
-      { t: "1:1 prep — Lissa Shulz", who: "Synced 1h ago", db: "Reviews" },
-    ]},
-    { name: "Done this week", color: "oklch(0.93 0.05 80)", tasks: [
-      { t: "Onboarded 3 contractors", who: "Closed Mon", db: "People" },
-      { t: "Generated 12 offer letters", who: "Closed Tue", db: "Hiring" },
-    ]},
+    { name: "Queued", color: "var(--dash-blue-soft)", tasks: queuedTasks },
+    { name: "Notion activity", color: "oklch(0.95 0.04 150)", tasks: notionTasks },
+    { name: "Done", color: "oklch(0.93 0.05 80)", tasks: completedTasks },
   ];
 
   const createTask = async () => {
@@ -463,11 +489,13 @@ function TasksPanel({ notionStatus }: { notionStatus: NotionStatus }) {
     if (!text?.trim()) return;
 
     try {
-      await fetch("/api/tasks/create", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text: text.trim() }),
+      await appRepository.appendTask({
+        type: "manual_task",
+        title: text.trim().slice(0, 80),
+        text: text.trim(),
+        createdAt: new Date().toISOString(),
       });
+      await onDataChange();
       window.alert("Task submitted.");
     } catch (error) {
       console.error("task create error", error);
@@ -480,7 +508,7 @@ function TasksPanel({ notionStatus }: { notionStatus: NotionStatus }) {
       <div className="flex items-end justify-between mb-6 gap-3 flex-wrap">
         <div>
           <h1 className="font-serif-display text-4xl" style={{ fontWeight: 600 }}>Tasks</h1>
-          <p className="text-sm mt-1" style={{ color: "var(--dash-muted)" }}>Auto-pushed to Notion · workspace <span className="font-medium" style={{ color: "var(--dash-ink)" }}>0cta HR</span></p>
+          <p className="text-sm mt-1" style={{ color: "var(--dash-muted)" }}>Live local task queue · Notion status shown when connected</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full" style={{ background: notionStatus.connected ? "oklch(0.95 0.04 150)" : "var(--dash-blue-soft)", color: notionStatus.connected ? "oklch(0.4 0.1 150)" : "var(--dash-muted)" }}>
@@ -500,29 +528,34 @@ function TasksPanel({ notionStatus }: { notionStatus: NotionStatus }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         {cols.map((c) => (
           <div key={c.name} className="rounded-2xl p-4" style={{ background: c.color }}>
             <p className="text-xs font-semibold mb-3">{c.name} <span className="opacity-50">· {c.tasks.length}</span></p>
-            <div className="space-y-2">
-              {c.tasks.map((task, i) => (
-                <div key={i} className="rounded-xl p-3 text-xs" style={{ background: "var(--dash-surface)" }}>
-                  <p className="font-medium mb-2">{task.t}</p>
-                  <div className="flex items-center justify-between text-[10px]" style={{ color: "var(--dash-muted)" }}>
-                    <span>{task.who}</span>
-                    <span className="px-1.5 py-0.5 rounded" style={{ background: "var(--dash-blue-soft)", color: "var(--dash-blue)" }}>{task.db}</span>
+            {c.tasks.length > 0 ? (
+              <div className="space-y-2">
+                {c.tasks.map((task) => (
+                  <div key={task.id} className="rounded-xl p-3 text-xs" style={{ background: "var(--dash-surface)" }}>
+                    <p className="font-medium mb-2">{taskTitle(task)}</p>
+                    <div className="flex items-center justify-between text-[10px]" style={{ color: "var(--dash-muted)" }}>
+                      <span>{new Date(task.createdAt).toLocaleDateString()}</span>
+                      <span className="px-1.5 py-0.5 rounded" style={{ background: "var(--dash-blue-soft)", color: "var(--dash-blue)" }}>{task.type.replace(/_/g, " ")}</span>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-xl p-3 text-xs" style={{ background: "var(--dash-surface)", color: "var(--dash-muted)" }}>
+                No live records yet.
+              </div>
+            )}
           </div>
         ))}
       </div>
     </>
   );
 }
-
-function PayrollPanel() {
+function PayrollPanel({ team }: { team: Worker[] }) {
   const total = team.reduce((s, t) => s + t.salary, 0);
   return (
     <>
@@ -530,12 +563,17 @@ function PayrollPanel() {
       <div className="flex items-end justify-between mb-6">
         <div>
           <h1 className="font-serif-display text-4xl" style={{ fontWeight: 600 }}>Payroll</h1>
-          <p className="text-sm mt-1" style={{ color: "var(--dash-muted)" }}>EU deductions auto-applied · audit-ready SQL</p>
+          <p className="text-sm mt-1" style={{ color: "var(--dash-muted)" }}>Calculated from live people records in local storage</p>
         </div>
         <button className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-full text-white" style={{ background: "var(--dash-blue)" }}>
           Run payroll <ArrowUpRight className="size-3.5" />
         </button>
       </div>
+
+      {team.length === 0 ? (
+        <EmptyState title="No payroll data yet" detail="Add people with salary fields before payroll totals can be calculated." />
+      ) : (
+        <>
 
       <div className="grid grid-cols-3 gap-3 mb-6">
         <KPI label="Gross monthly" value={`€${total.toLocaleString()}`} />
@@ -574,9 +612,9 @@ function PayrollPanel() {
 
       <div className="mt-4 grid grid-cols-2 gap-3">
         <div className="rounded-2xl p-4 text-xs" style={{ background: "var(--dash-blue-soft)" }}>
-          <p className="font-semibold mb-1.5">Suggested query · audit August deductions</p>
+          <p className="font-semibold mb-1.5">Suggested query · audit current deductions</p>
           <code className="block text-[11px] p-2 rounded-lg" style={{ background: "var(--dash-surface)", color: "var(--dash-ink)" }}>
-            SELECT employee, gross, tax, social, net FROM payroll WHERE month='2026-08' ORDER BY net DESC;
+            SELECT employee, gross, tax, social, net FROM payroll ORDER BY net DESC;
           </code>
         </div>
         <div className="rounded-2xl p-4 text-xs" style={{ background: "var(--dash-surface)", border: "1px solid var(--dash-border)" }}>
@@ -588,6 +626,8 @@ function PayrollPanel() {
           </div>
         </div>
       </div>
+        </>
+      )}
     </>
   );
 }
@@ -612,65 +652,63 @@ function KPI({ label, value, highlight }: { label: string; value: string; highli
   );
 }
 
-function TokenPanel() {
-  const activity = [
-    { who: "Hiring agent", action: "Draft offer letter · Maya Chen", burn: 12, time: "2m" },
-    { who: "Payroll agent", action: "Compute August deductions", burn: 28, time: "14m" },
-    { who: "Review agent", action: "Generate Q3 review · Kevin", burn: 18, time: "1h" },
-    { who: "Notion sync", action: "Push 4 tasks to People DB", burn: 4, time: "1h" },
-    { who: "Hiring agent", action: "Screen 38 candidates", burn: 84, time: "3h" },
-  ];
+function TokenPanel({ tasks }: { tasks: TaskRecord[] }) {
+  const activity = [...tasks].reverse().slice(0, 6);
+  const agentTasks = tasks.filter((task) => task.type.includes("agent"));
+  const notionTasks = tasks.filter((task) => task.type.includes("notion") || String(task.via ?? "").includes("notion"));
+  const earlyCardTasks = tasks.filter((task) => task.type.startsWith("early_card"));
+  const manualTasks = tasks.filter((task) => task.type === "manual_task");
   return (
     <>
       <Crumb label="$OCTA wallet" parent="Token" />
-      <h1 className="font-serif-display text-4xl mb-1" style={{ fontWeight: 600 }}>Token usage</h1>
-      <p className="text-sm mb-6" style={{ color: "var(--dash-muted)" }}>Bots burn $OCTA on every action. Top up to keep agents running.</p>
+      <h1 className="font-serif-display text-4xl mb-1" style={{ fontWeight: 600 }}>Usage activity</h1>
+      <p className="text-sm mb-6" style={{ color: "var(--dash-muted)" }}>Live action counts from the local JSON-backed datastore.</p>
 
       <div className="rounded-3xl p-6 mb-4 text-white" style={{ background: "linear-gradient(135deg, var(--dash-blue), oklch(0.45 0.18 280))" }}>
         <div className="flex items-start justify-between mb-6">
           <div>
-            <p className="text-xs opacity-70 mb-1">Balance</p>
-            <p className="font-serif-display text-5xl" style={{ fontWeight: 500 }}>128,540</p>
-            <p className="text-xs opacity-70 mt-1">$OCTA · ≈ $1,285 USD</p>
+            <p className="text-xs opacity-70 mb-1">Stored actions</p>
+            <p className="font-serif-display text-5xl" style={{ fontWeight: 500 }}>{tasks.length}</p>
+            <p className="text-xs opacity-70 mt-1">tasks, agent requests, Notion events, and Early Card actions</p>
           </div>
           <span className="text-xs px-2.5 py-1 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }}>
-            <Sparkles className="size-3 inline mr-1" /> Early SBT · +5% fee share
+            <Sparkles className="size-3 inline mr-1" /> Local JSON mode
           </span>
         </div>
         <div className="grid grid-cols-3 gap-4 text-xs">
-          <div><p className="opacity-60">Burned today</p><p className="text-lg font-bold mt-0.5">4,218</p></div>
-          <div><p className="opacity-60">Burned 30d</p><p className="text-lg font-bold mt-0.5">62,140</p></div>
-          <div><p className="opacity-60">Earned (PRs + SBT)</p><p className="text-lg font-bold mt-0.5">+8,400</p></div>
+          <div><p className="opacity-60">Agent</p><p className="text-lg font-bold mt-0.5">{agentTasks.length}</p></div>
+          <div><p className="opacity-60">Notion</p><p className="text-lg font-bold mt-0.5">{notionTasks.length}</p></div>
+          <div><p className="opacity-60">Early Card</p><p className="text-lg font-bold mt-0.5">{earlyCardTasks.length}</p></div>
         </div>
         <div className="flex gap-2 mt-6">
-          <Link to="/buy" className="flex-1 rounded-full bg-white text-sm py-2.5 font-medium text-center" style={{ color: "var(--dash-blue)" }}>Top up</Link>
-          <button disabled className="flex-1 rounded-full text-sm py-2.5 font-medium opacity-70 cursor-not-allowed" style={{ background: "rgba(255,255,255,0.15)" }}>Claim rewards soon</button>
+          <Link to="/buy" className="flex-1 rounded-full bg-white text-sm py-2.5 font-medium text-center" style={{ color: "var(--dash-blue)" }}>Get Early Card</Link>
+          <button disabled className="flex-1 rounded-full text-sm py-2.5 font-medium opacity-70 cursor-not-allowed" style={{ background: "rgba(255,255,255,0.15)" }}>Rewards disabled</button>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-6">
-        <BotStat name="Hiring agent" calls={142} burn={1840} />
-        <BotStat name="Payroll agent" calls={38} burn={1064} />
-        <BotStat name="Review agent" calls={61} burn={912} />
-        <BotStat name="Notion sync" calls={208} burn={402} />
+        <BotStat name="Agent requests" calls={agentTasks.length} burn={agentTasks.length} />
+        <BotStat name="Notion sync" calls={notionTasks.length} burn={notionTasks.length} />
+        <BotStat name="Manual tasks" calls={manualTasks.length} burn={manualTasks.length} />
+        <BotStat name="Early Card" calls={earlyCardTasks.length} burn={earlyCardTasks.length} />
       </div>
 
-      <h3 className="text-sm font-semibold mb-3">Recent burn activity</h3>
+      <h3 className="text-sm font-semibold mb-3">Recent activity</h3>
       <div className="rounded-2xl overflow-hidden" style={{ background: "var(--dash-surface)", border: "1px solid var(--dash-border)" }}>
-        {activity.map((a, i) => (
-          <div key={i} className="flex items-center gap-3 px-4 py-3 text-sm" style={{ borderTop: i ? "1px solid var(--dash-border)" : "none" }}>
+        {activity.length > 0 ? activity.map((task, i) => (
+          <div key={task.id} className="flex items-center gap-3 px-4 py-3 text-sm" style={{ borderTop: i ? "1px solid var(--dash-border)" : "none" }}>
             <div className="size-8 rounded-full grid place-items-center shrink-0" style={{ background: "var(--dash-blue-soft)", color: "var(--dash-blue)" }}>
               <Bot className="size-4" />
             </div>
             <div className="flex-1">
-              <p className="font-medium">{a.action}</p>
-              <p className="text-[11px]" style={{ color: "var(--dash-muted)" }}>{a.who} · {a.time} ago</p>
+              <p className="font-medium">{taskTitle(task)}</p>
+              <p className="text-[11px]" style={{ color: "var(--dash-muted)" }}>{task.type.replace(/_/g, " ")} · {new Date(task.createdAt).toLocaleDateString()}</p>
             </div>
             <span className="inline-flex items-center gap-1 text-sm font-semibold" style={{ color: "var(--dash-blue)" }}>
-              <Flame className="size-3" /> {a.burn}
+              <Flame className="size-3" /> 1
             </span>
           </div>
-        ))}
+        )) : <EmptyState title="No activity yet" detail="Run an agent request, create a task, or complete Early Card actions to populate this feed." />}
       </div>
     </>
   );
@@ -691,7 +729,7 @@ function BotStat({ name, calls, burn }: { name: string; calls: number; burn: num
           <p className="text-xl font-bold">{calls}</p>
         </div>
         <div className="text-right">
-          <p className="text-[11px]" style={{ color: "var(--dash-muted)" }}>Burned</p>
+          <p className="text-[11px]" style={{ color: "var(--dash-muted)" }}>Records</p>
           <p className="text-xl font-bold" style={{ color: "var(--dash-blue)" }}>{burn}</p>
         </div>
       </div>
@@ -699,14 +737,8 @@ function BotStat({ name, calls, burn }: { name: string; calls: number; burn: num
   );
 }
 
-function ReviewDrawer({ worker, onClose }: { worker: Worker; onClose: () => void }) {
-  const tasks = [
-    { t: "Redesign onboarding flow", status: "Shipped", pct: 100 },
-    { t: "Component library v2", status: "In review", pct: 80 },
-    { t: "Mobile checkout audit", status: "In progress", pct: 45 },
-    { t: "Brand refresh proposal", status: "Blocked", pct: 20 },
-  ];
-
+function ReviewDrawer({ worker, tasks, onClose }: { worker: Worker; tasks: TaskRecord[]; onClose: () => void }) {
+  const workerTasks = tasks.filter((task) => task.assignee === worker.name || task.text?.includes(worker.name) || task.title?.includes(worker.name));
   const sendReview = async () => {
     const text = `${worker.name} review: productivity ${worker.productivity}%, rating ${worker.rating}, tasks this week ${worker.tasksThisWeek}.`;
     try {
@@ -744,17 +776,21 @@ function ReviewDrawer({ worker, onClose }: { worker: Worker; onClose: () => void
 
         <h3 className="text-sm font-semibold mb-3">Current tasks</h3>
         <div className="space-y-2 mb-6">
-          {tasks.map((t) => (
-            <div key={t.t} className="rounded-xl p-3" style={{ background: "var(--dash-blue-soft)" }}>
+          {workerTasks.length > 0 ? workerTasks.map((t) => (
+            <div key={t.id} className="rounded-xl p-3" style={{ background: "var(--dash-blue-soft)" }}>
               <div className="flex justify-between items-center mb-2">
-                <p className="text-sm font-medium">{t.t}</p>
-                <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: "var(--dash-surface)", color: "var(--dash-muted)" }}>{t.status}</span>
+                <p className="text-sm font-medium">{taskTitle(t)}</p>
+                <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: "var(--dash-surface)", color: "var(--dash-muted)" }}>{String(t.status ?? "queued")}</span>
               </div>
               <div className="h-1 rounded-full" style={{ background: "var(--dash-surface)" }}>
-                <div className="h-full rounded-full" style={{ width: `${t.pct}%`, background: "var(--dash-blue)" }} />
+                <div className="h-full rounded-full" style={{ width: t.status === "done" || t.status === "completed" ? "100%" : "35%", background: "var(--dash-blue)" }} />
               </div>
             </div>
-          ))}
+          )) : (
+            <div className="rounded-xl p-3 text-sm" style={{ background: "var(--dash-blue-soft)", color: "var(--dash-muted)" }}>
+              No tasks are linked to this person yet.
+            </div>
+          )}
         </div>
 
         <h3 className="text-sm font-semibold mb-3">Agent review · last 30 days</h3>
@@ -772,17 +808,19 @@ function ReviewDrawer({ worker, onClose }: { worker: Worker; onClose: () => void
   );
 }
 
-function RightRail() {
+function RightRail({ team, tasks }: { team: Worker[]; tasks: TaskRecord[] }) {
   const radius = 60;
   const c = 2 * Math.PI * radius;
-  const pct = 75;
+  const pct = team.length > 0 ? Math.round(team.reduce((sum, worker) => sum + worker.productivity, 0) / team.length) : 0;
+  const activeUser = team[0];
+  const recentTasks = [...tasks].reverse().slice(0, 3);
   return (
     <aside className="col-span-12 md:col-span-3 p-6 border-l" style={{ borderColor: "var(--dash-border)" }}>
       <div className="flex items-center gap-3 mb-6">
         <div className="size-11 rounded-full" style={{ background: "linear-gradient(135deg, var(--dash-blue-soft), var(--dash-blue))" }} />
         <div className="flex-1">
-          <p className="text-sm font-semibold">Veya Sung</p>
-          <p className="text-xs" style={{ color: "var(--dash-muted)" }}>Art Director · admin</p>
+          <p className="text-sm font-semibold">{activeUser?.name ?? "0cta Admin"}</p>
+          <p className="text-xs" style={{ color: "var(--dash-muted)" }}>{activeUser?.role ?? "Admin workspace"}</p>
         </div>
         <button className="size-8 rounded-full grid place-items-center" style={{ background: "var(--dash-blue-soft)", color: "var(--dash-muted)" }}>
           <MoreHorizontal className="size-4" />
@@ -791,13 +829,13 @@ function RightRail() {
 
       <div className="rounded-2xl p-4 mb-6 text-white" style={{ background: "linear-gradient(135deg, var(--dash-blue), oklch(0.45 0.18 280))" }}>
         <div className="flex justify-between items-center mb-2">
-          <p className="text-[11px] opacity-70">$OCTA balance</p>
+          <p className="text-[11px] opacity-70">Stored actions</p>
           <Coins className="size-3.5 opacity-70" />
         </div>
-        <p className="font-serif-display text-3xl" style={{ fontWeight: 500 }}>128,540</p>
+        <p className="font-serif-display text-3xl" style={{ fontWeight: 500 }}>{tasks.length}</p>
         <div className="flex justify-between text-[11px] mt-2 opacity-80">
-          <span><Flame className="size-2.5 inline" /> 4,218 burned today</span>
-          <span><TrendingUp className="size-2.5 inline" /> +6%</span>
+          <span><Flame className="size-2.5 inline" /> {tasks.filter((task) => task.type.includes("agent")).length} agent</span>
+          <span><TrendingUp className="size-2.5 inline" /> {tasks.filter((task) => task.type.includes("notion")).length} Notion</span>
         </div>
       </div>
 
@@ -820,9 +858,17 @@ function RightRail() {
 
       <h3 className="text-sm font-semibold mb-3">Agent activity</h3>
       <div className="space-y-2">
-        <Activity icon={<Mail className="size-3.5" />} title="Offer sent · Maya Chen" sub="2 min · 12 $OCTA" tint="oklch(0.95 0.04 80)" />
-        <Activity icon={<FileText className="size-3.5" />} title="Notion · 3 tasks queued" sub="14 min · 4 $OCTA" tint="oklch(0.95 0.04 150)" />
-        <Activity icon={<CheckCircle2 className="size-3.5" />} title="Q3 review · Kevin K." sub="1 hr · 18 $OCTA" tint="var(--dash-blue-soft)" />
+        {recentTasks.length > 0 ? recentTasks.map((task) => (
+          <Activity
+            key={task.id}
+            icon={task.type.includes("notion") ? <FileText className="size-3.5" /> : <Mail className="size-3.5" />}
+            title={taskTitle(task)}
+            sub={`${task.type.replace(/_/g, " ")} · ${new Date(task.createdAt).toLocaleDateString()}`}
+            tint={task.type.includes("notion") ? "oklch(0.95 0.04 150)" : "var(--dash-blue-soft)"}
+          />
+        )) : (
+          <Activity icon={<CheckCircle2 className="size-3.5" />} title="No activity yet" sub="Run a workflow to populate this rail" tint="var(--dash-blue-soft)" />
+        )}
       </div>
     </aside>
   );

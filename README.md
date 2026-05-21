@@ -7,7 +7,7 @@ OCTA Hub is a Vite-based React HR workflow dashboard with admin onboarding, Noti
 - Admin onboarding checklist for first-time setup
 - Notion connect UI and sync flow
 - AI agent dashboard for task and review automation
-- Wallet connect / token purchase simulation
+- Wallet connect / Early Card access flow
 - Local JSON persistence fallback for users, tasks, and settings
 - Simple routing with `@tanstack/react-router`
 
@@ -109,9 +109,9 @@ The dashboard now contains an `Admin onboarding` section with:
 - wallet enablement
 - admin invite checklist
 
-## Wallet and tokens
+## Early Card
 
-The landing page includes wallet connect support and a token purchase simulation. Use `/buy` to top up simulated `$OCTA` metrics.
+The landing page links to an Early Card flow at `/buy`. Users can complete launch tasks, submit a quote about AI agents on Base, and record an Early Supporter Pass mint in the local JSON-backed datastore.
 
 ## Notes
 
