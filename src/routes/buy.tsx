@@ -13,8 +13,8 @@ export const Route = createFileRoute("/buy")({
 });
 
 function EarlyCardPage() {
-  const emailRef = useRef<HTMLInputElement>(null);
-  const quoteRef = useRef<HTMLTextAreaElement>(null);
+  const [email, setEmail] = useState("");
+  const [quote, setQuote] = useState(BASE_AGENT_PROMPT);
   const [liked, setLiked] = useState(false);
   const [quoted, setQuoted] = useState(false);
   const [minted, setMinted] = useState(false);
@@ -37,8 +37,8 @@ function EarlyCardPage() {
     };
   }, []);
 
-  const getQuote = () => quoteRef.current?.value.trim() ?? "";
-  const getEmail = () => emailRef.current?.value.trim() ?? "";
+  const getQuote = () => quote.trim();
+  const getEmail = () => email.trim();
 
   const recordSocialTask = async (type: "early_card_like_retweet" | "early_card_quote") => {
     await appRepository.appendTask({
@@ -133,7 +133,8 @@ function EarlyCardPage() {
             <div className="mx-auto mt-7 max-w-xl rounded-lg border border-white/10 bg-black/35 p-2">
               <input
                 type="email"
-                ref={emailRef}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="min-h-11 w-full bg-transparent px-3 text-sm text-white outline-none placeholder:text-white/30"
                 placeholder="Email"
               />
@@ -175,8 +176,8 @@ function EarlyCardPage() {
                 </button>
               </div>
               <textarea
-                ref={quoteRef}
-                defaultValue={BASE_AGENT_PROMPT}
+                value={quote}
+                onChange={(e) => setQuote(e.target.value)}
                 rows={3}
                 className="w-full resize-none bg-transparent text-sm leading-6 text-white outline-none placeholder:text-white/30"
                 placeholder="Share your thought on AI agents on Base"

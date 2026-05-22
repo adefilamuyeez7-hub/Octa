@@ -66,13 +66,16 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
   return brandedErrorResponse();
 }
 
-import { notionStart, notionCallback } from './server/notionHandlers';
+import { notionStart, notionCallback, getNotionStatus } from './server/notionHandlers';
 import { agentRun } from "./server/agentHandlers";
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       const url = new URL(request.url);
+      if (url.pathname.startsWith('/api/notion/status')) {
+        return Response.json(getNotionStatus(request));
+      }
       if (url.pathname.startsWith('/api/notion/start')) {
         return notionStart(request);
       }

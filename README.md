@@ -60,6 +60,14 @@ To connect that endpoint to Moltbot, set:
 - `MOLTBOT_API_KEY` (optional)
 - `MOLTBOT_AGENT_ID` (optional, defaults to `main`)
 
+Alternatively, connect directly to Grok with:
+
+- `XAI_API_KEY` or `GROK_API_KEY`
+- `XAI_API_URL` or `GROK_API_URL` (optional, defaults to `https://api.x.ai/v1/responses`)
+- `XAI_MODEL` or `GROK_MODEL` (optional, defaults to `grok-latest`)
+
+When both Grok and Moltbot are configured, Grok is used first.
+
 For an OpenClaw/Moltbot Gateway, `MOLTBOT_WEBHOOK_URL` should usually be your Gateway OpenResponses endpoint, for example:
 
 ```bash
@@ -98,6 +106,12 @@ Set these Vercel environment variables as needed:
 - `MOLTBOT_WEBHOOK_URL`
 - `MOLTBOT_API_KEY`
 - `MOLTBOT_AGENT_ID`
+- `GROK_API_KEY`
+- `GROK_API_URL`
+- `GROK_MODEL`
+- `XAI_API_KEY`
+- `XAI_API_URL`
+- `XAI_MODEL`
 
 ## Admin onboarding
 

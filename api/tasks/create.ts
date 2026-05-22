@@ -7,21 +7,30 @@ export default {
     }
 
     try {
-      const body = (await request.json()) as { title?: string; text?: string };
+      const body = (await request.json()) as {
+        title?: string;
+        text?: string;
+        type?: string;
+        via?: string;
+      };
       const text = body.text?.trim() || body.title?.trim() || "";
       if (!text) {
         return Response.json({ error: "Missing task text" }, { status: 400 });
       }
 
-      const notion = await pushToNotion(request, {
+      const task = {
         title: body.title?.trim() || text.slice(0, 80),
         text,
+        type: body.type?.trim() || "manual_task",
+        via: body.via?.trim() || "manual-task",
         createdAt: new Date().toISOString(),
-        via: "manual-task",
-      });
+      };
+
+      const notion = await pushToNotion(request, task);
 
       return Response.json({
         ok: true,
+        task,
         notion,
       });
     } catch (error) {

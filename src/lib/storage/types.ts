@@ -11,6 +11,9 @@ export interface AppSettings extends JsonObject {
   siteName?: string;
   tokenEnabled?: boolean;
   walletEnabled?: boolean;
+  burnPolicy?: "per_request" | "per_action" | "monthly_cap";
+  walletAddress?: string;
+  approvalRequired?: boolean;
 }
 
 export interface AppUserRecord extends JsonObject {

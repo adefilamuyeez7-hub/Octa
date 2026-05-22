@@ -2,6 +2,33 @@ import { appRepository } from "../lib/storage";
 
 const NOTION_AUTHORIZE = 'https://www.notion.com/oauth2/v2/authorize';
 const NOTION_TOKEN = 'https://www.notion.com/oauth2/v2/token';
+const NOTION_STATE_COOKIE = 'octa_notion_state';
+const NOTION_ACCESS_COOKIE = 'octa_notion_access_token';
+
+function readCookie(request: Request, name: string): string | null {
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  const cookies = cookieHeader.split(";").map((part) => part.trim());
+  for (const cookie of cookies) {
+    const [key, ...rest] = cookie.split("=");
+    if (key === name) {
+      return decodeURIComponent(rest.join("="));
+    }
+  }
+  return null;
+}
+
+export function getNotionStatus(request: Request) {
+  const hasClientId = Boolean(process.env.NOTION_CLIENT_ID);
+  const hasClientSecret = Boolean(process.env.NOTION_CLIENT_SECRET);
+  const hasDatabaseId = Boolean(process.env.NOTION_DATABASE_ID);
+  const hasAccessToken = Boolean(readCookie(request, NOTION_ACCESS_COOKIE) || process.env.NOTION_TOKEN);
+
+  return {
+    oauthReady: hasClientId && hasClientSecret,
+    databaseReady: hasDatabaseId,
+    connected: hasAccessToken && hasDatabaseId,
+  };
+}
 
 export async function notionStart(request: Request) {
   const params = new URL(request.url).searchParams;
