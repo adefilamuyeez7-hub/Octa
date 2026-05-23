@@ -1,5 +1,5 @@
 export type JsonPrimitive = string | number | boolean | null;
-export type JsonValue = JsonPrimitive | JsonObject | JsonArray;
+export type JsonValue = JsonPrimitive | JsonObject | JsonArray | undefined;
 
 export interface JsonObject {
   [key: string]: JsonValue;
@@ -14,6 +14,18 @@ export interface AppSettings extends JsonObject {
   burnPolicy?: "per_request" | "per_action" | "monthly_cap";
   walletAddress?: string;
   approvalRequired?: boolean;
+  llmProvider?: "gemini" | "groq" | "local";
+  geminiApiKey?: string;
+  groqApiKey?: string;
+  adminWallets?: string[];
+  userFeatures?: {
+    chatEnabled: boolean;
+    tasksEnabled: boolean;
+  };
+  // Platform access controls
+  loginEnabled?: boolean;
+  signupEnabled?: boolean;
+  waitlistMode?: boolean;
 }
 
 export interface AppUserRecord extends JsonObject {

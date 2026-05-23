@@ -3,6 +3,7 @@ import { appRepository } from "../lib/storage";
 
 type AgentRequest = {
   message?: string;
+  provider?: "xai" | "gemini";
   history?: Array<{ from?: string; text?: string }>;
 };
 
@@ -79,19 +80,34 @@ function extractReply(payload: unknown): string | null {
     }
   }
 
-  const candidates = [
+  const candidatesFields = [
     record.reply,
     record.message,
     record.text,
-    record.output,
+    record.output_text,
     record.content,
     record.response,
     record.result,
+    record.parts,
   ];
 
-  for (const candidate of candidates) {
+  for (const candidate of candidatesFields) {
     const reply = extractReply(candidate);
     if (reply) return reply;
+  }
+
+  if (Array.isArray(record.choices)) {
+    for (const choice of record.choices) {
+      const reply = extractReply(choice);
+      if (reply) return reply;
+    }
+  }
+
+  if (Array.isArray(record.candidates)) {
+    for (const choice of record.candidates) {
+      const reply = extractReply(choice);
+      if (reply) return reply;
+    }
   }
 
   if (Array.isArray(record.choices)) {
@@ -131,10 +147,10 @@ function buildXaiMessages(input: AgentRequest): XaiChatMessage[] {
       entry.text.trim().length > 0,
   );
 
-  const conversation =
+  const conversation: XaiChatMessage[] =
     history.length > 0
       ? history.map((entry) => ({
-          role: entry.from === "agent" ? "assistant" : "user",
+          role: entry.from === "agent" ? ("assistant" as const) : ("user" as const),
           content: entry.text,
         }))
       : input.message
@@ -210,6 +226,72 @@ async function callMoltbotWebhook(
   return {
     reply,
     meta: `Live via Moltbot gateway (${agentId}) - responded just now`,
+    live: true,
+  };
+}
+
+async function callGeminiApi(
+  input: AgentRequest,
+  apiKey: string,
+): Promise<AgentResult> {
+  const history = (input.history ?? []).filter(
+    (entry): entry is { from: "you" | "agent"; text: string } =>
+      (entry.from === "you" || entry.from === "agent") &&
+      typeof entry.text === "string" &&
+      entry.text.trim().length > 0,
+  );
+
+  const contents = history.map((entry) => ({
+    role: entry.from === "agent" ? "model" : "user",
+    parts: [{ text: entry.text }],
+  }));
+
+  if (input.message) {
+    contents.push({
+      role: "user",
+      parts: [{ text: input.message }],
+    });
+  }
+
+  const payload = {
+    contents,
+    systemInstruction: {
+      parts: [
+        {
+          text: "You are 0cta, an HR operations copilot. Give direct, useful replies and suggest concrete next steps when helpful.",
+        },
+      ],
+    },
+  };
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+
+  const raw = await response.text();
+  if (!response.ok) {
+    throw new Error(`Gemini API error ${response.status}: ${raw}`);
+  }
+
+  let parsed: unknown = raw;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    // Ignore parse error
+  }
+
+  const reply = extractReply(parsed) ?? (typeof raw === "string" ? raw.trim() : "Gemini returned an empty reply.");
+  
+  return {
+    reply,
+    meta: `Live via Google Gemini (1.5 Flash) - responded just now`,
     live: true,
   };
 }
@@ -296,11 +378,22 @@ export async function agentRun(request: Request) {
     const grokApiUrl =
       process.env.XAI_API_URL || process.env.GROK_API_URL || "https://api.x.ai/v1/responses";
     const grokModel = process.env.XAI_MODEL || process.env.GROK_MODEL || "grok-latest";
+    const geminiApiKey = process.env.GEMINI_API_KEY || "";
     const webhookUrl = process.env.MOLTBOT_WEBHOOK_URL || "";
     const apiKey = process.env.MOLTBOT_API_KEY || "";
 
     let result = buildLocalReply(message);
-    if (grokApiKey) {
+    if (input.provider === "gemini" && geminiApiKey) {
+      try {
+        result = await callGeminiApi(input, geminiApiKey);
+      } catch (error) {
+        console.error("gemini api error", error);
+        result = {
+          ...buildLocalReply(message),
+          meta: "Gemini API failed - local fallback used just now",
+        };
+      }
+    } else if (grokApiKey) {
       try {
         result = await callXaiApi(input, grokApiUrl, grokApiKey, grokModel);
       } catch (error) {

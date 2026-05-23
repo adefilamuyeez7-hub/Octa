@@ -1,6 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, memo, useCallback } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState, useCallback, useRef, memo } from "react";
 import { Textarea } from "@/components/ui/textarea";
+import { supabase } from "../lib/supabaseClient";
 import {
   Users,
   ListChecks,
@@ -83,6 +84,10 @@ function taskTitle(task: TaskRecord): string {
 }
 
 function Dashboard() {
+  const navigate = useNavigate();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [userFeatures, setUserFeatures] = useState({ chatEnabled: true, tasksEnabled: true });
+  
   const [section, setSection] = useState<Section>("agent");
   const [reviewing, setReviewing] = useState<Worker | null>(null);
   const [notionStatus, setNotionStatus] = useState<NotionStatus>({
@@ -92,42 +97,82 @@ function Dashboard() {
   });
   const [users, setUsers] = useState<AppUserRecord[]>([]);
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
+  const [currentUser, setCurrentUser] = useState<{ name: string; username: string; role?: string; avatar_url?: string } | null>(null);
 
-  const refreshData = async () => {
+  const refreshData = useCallback(async () => {
     const db = await appRepository.readDb();
     setUsers(db.users);
     setTasks(db.tasks);
-  };
+  }, []);
 
   useEffect(() => {
     let active = true;
     (async () => {
       try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          navigate({ to: "/login" });
+          return;
+        }
+
+        const s = await appRepository.getSettings();
+        
+        const userMeta = session.user.user_metadata || {};
+        const adminEmails = ["admin@admin.com", "dexter@0cta.com"];
+        const isInitialAdmin = session.user.email && adminEmails.includes(session.user.email);
+        const currentAdminWallets = s.adminWallets || [];
+        const isWalletAdmin = userMeta.wallet_address && currentAdminWallets.includes(userMeta.wallet_address);
+        
+        const adminMode = isInitialAdmin || isWalletAdmin;
+        setIsAdmin(adminMode);
+
+        setCurrentUser({
+          name: userMeta.first_name ? `${userMeta.first_name} ${userMeta.last_name}` : "User",
+          username: userMeta.username || session.user.email?.split("@")[0] || "user",
+          role: adminMode ? "Admin workspace" : "User workspace",
+          avatar_url: userMeta.avatar_url
+        });
+        
+        if (!adminMode && s.userFeatures) {
+          setUserFeatures(s.userFeatures);
+        }
+
         const db = await appRepository.readDb();
         if (active) {
           setUsers(db.users);
           setTasks(db.tasks);
+          
+          if (!adminMode) {
+             // force section to allowed
+             if (s.userFeatures?.chatEnabled) setSection("agent");
+             else if (s.userFeatures?.tasksEnabled) setSection("tasks");
+          }
         }
 
-        const response = await fetch("/api/notion/status");
-        if (!response.ok) return;
-        const payload = (await response.json()) as Partial<NotionStatus>;
-        if (active) {
-          setNotionStatus({
-            oauthReady: Boolean(payload.oauthReady),
-            databaseReady: Boolean(payload.databaseReady),
-            connected: Boolean(payload.connected),
-          });
+        try {
+          const response = await fetch("/api/notion/status");
+          if (response.ok) {
+            const payload = (await response.json()) as Partial<NotionStatus>;
+            if (active) {
+              setNotionStatus({
+                oauthReady: Boolean(payload.oauthReady),
+                databaseReady: Boolean(payload.databaseReady),
+                connected: Boolean(payload.connected),
+              });
+            }
+          }
+        } catch {
+          // Notion status unavailable in dev — silently ignored
         }
       } catch (error) {
-        console.error("notion status error", error);
+        console.error("dashboard init error", error);
       }
     })();
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [navigate]);
 
   const team = useMemo(() => users.map((user) => userToWorker(user, tasks)), [users, tasks]);
 
@@ -157,61 +202,71 @@ function Dashboard() {
       >
         {/* Mobile: Sidebar as offcanvas toggle */}
         <div
-          className="md:hidden col-span-12 flex items-center justify-between p-4 border-b"
+          className="md:hidden col-span-12 flex flex-wrap items-center justify-between p-4 border-b gap-2"
           style={{ borderColor: "var(--dash-border)" }}
         >
-          <h2 className="font-serif-display text-xl">0cta</h2>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setSection("agent")}
-              className="px-3 py-1 text-sm rounded"
-              style={{
-                background: section === "agent" ? "var(--dash-blue)" : "transparent",
-                color: section === "agent" ? "white" : "var(--dash-muted)",
-              }}
-            >
-              Chat
-            </button>
-            <button
-              onClick={() => setSection("tasks")}
-              className="px-3 py-1 text-sm rounded"
-              style={{
-                background: section === "tasks" ? "var(--dash-blue)" : "transparent",
-                color: section === "tasks" ? "white" : "var(--dash-muted)",
-              }}
-            >
-              Tasks
-            </button>
-            <button
-              onClick={() => setSection("people")}
-              className="px-3 py-1 text-sm rounded"
-              style={{
-                background: section === "people" ? "var(--dash-blue)" : "transparent",
-                color: section === "people" ? "white" : "var(--dash-muted)",
-              }}
-            >
-              People
-            </button>
+          <h2 className="font-serif-display text-xl w-full">0cta</h2>
+          <div className="flex gap-2 w-full overflow-x-auto pb-1">
+            {(isAdmin || userFeatures.chatEnabled) && (
+              <button
+                onClick={() => setSection("agent")}
+                className="px-3 py-1 text-sm rounded whitespace-nowrap"
+                style={{
+                  background: section === "agent" ? "var(--dash-blue)" : "transparent",
+                  color: section === "agent" ? "white" : "var(--dash-muted)",
+                }}
+              >
+                Chat
+              </button>
+            )}
+            {(isAdmin || userFeatures.tasksEnabled) && (
+              <button
+                onClick={() => setSection("tasks")}
+                className="px-3 py-1 text-sm rounded whitespace-nowrap"
+                style={{
+                  background: section === "tasks" ? "var(--dash-blue)" : "transparent",
+                  color: section === "tasks" ? "white" : "var(--dash-muted)",
+                }}
+              >
+                Tasks
+              </button>
+            )}
+            {isAdmin && (
+              <button
+                onClick={() => setSection("people")}
+                className="px-3 py-1 text-sm rounded whitespace-nowrap"
+                style={{
+                  background: section === "people" ? "var(--dash-blue)" : "transparent",
+                  color: section === "people" ? "white" : "var(--dash-muted)",
+                }}
+              >
+                People
+              </button>
+            )}
           </div>
         </div>
 
         {/* Desktop Sidebar */}
-        <div className="hidden md:block">
-          <Sidebar section={section} setSection={setSection} tasks={tasks} />
-        </div>
+        <Sidebar 
+          section={section} 
+          setSection={setSection} 
+          tasks={tasks} 
+          isAdmin={isAdmin}
+          userFeatures={userFeatures}
+        />
 
         {/* Main content - Agent chat is primary on mobile */}
         <main
-          className={`col-span-12 ${section === "agent" ? "md:col-span-7" : "hidden md:block md:col-span-7"} p-4 md:p-8 min-h-[820px]`}
+          className={`col-span-12 ${section === "agent" ? "md:col-span-7" : "hidden md:block md:col-span-7"} p-4 md:p-8 min-h-[820px] min-w-0`}
         >
-          {section === "agent" && <AgentPanel notionStatus={notionStatus} />}
-          {section === "people" && <PeoplePanel team={team} onReview={setReviewing} />}
-          {section === "tasks" && (
+          {section === "agent" && (isAdmin || userFeatures.chatEnabled) && <AgentPanel notionStatus={notionStatus} onDataChange={refreshData} />}
+          {section === "tasks" && (isAdmin || userFeatures.tasksEnabled) && (
             <TasksPanel notionStatus={notionStatus} tasks={tasks} onDataChange={refreshData} />
           )}
-          {section === "payroll" && <PayrollPanel team={team} />}
-          {section === "token" && <TokenPanel tasks={tasks} />}
-          {section === "admin" && (
+          {section === "people" && isAdmin && <PeoplePanel team={team} onReview={setReviewing} />}
+          {section === "payroll" && isAdmin && <PayrollPanel team={team} />}
+          {section === "token" && isAdmin && <TokenPanel tasks={tasks} />}
+          {section === "admin" && isAdmin && (
             <AdminPanel
               notionStatus={notionStatus}
               tasks={tasks}
@@ -222,12 +277,10 @@ function Dashboard() {
         </main>
 
         {/* Right rail hidden on mobile */}
-        <div className="hidden md:block">
-          <RightRail team={team} tasks={tasks} />
-        </div>
+        <RightRail team={team} tasks={tasks} isAdmin={isAdmin} currentUser={currentUser} />
       </div>
 
-      {reviewing && (
+      {reviewing && isAdmin && (
         <ReviewDrawer worker={reviewing} tasks={tasks} onClose={() => setReviewing(null)} />
       )}
     </div>
@@ -238,27 +291,33 @@ function Sidebar({
   section,
   setSection,
   tasks,
+  isAdmin,
+  userFeatures
 }: {
   section: Section;
   setSection: (s: Section) => void;
   tasks: TaskRecord[];
+  isAdmin: boolean;
+  userFeatures: { chatEnabled: boolean; tasksEnabled: boolean; };
 }) {
   const burnedToday = useMemo(
     () =>
       tasks.filter((task) => task.type.includes("agent") || task.type.includes("notion")).length,
     [tasks],
   );
+  
   const nav = [
-    { id: "agent" as const, icon: Sparkles, label: "AI Agent" },
-    { id: "people" as const, icon: Users, label: "People" },
-    { id: "tasks" as const, icon: ListChecks, label: "Tasks · Notion" },
-    { id: "payroll" as const, icon: Wallet, label: "Payroll" },
-    { id: "token" as const, icon: Coins, label: "Token" },
-    { id: "admin" as const, icon: ShieldCheck, label: "Admin onboarding" },
-  ];
+    { id: "agent" as const, icon: Sparkles, label: "AI Agent", show: isAdmin || userFeatures.chatEnabled },
+    { id: "people" as const, icon: Users, label: "People", show: isAdmin },
+    { id: "tasks" as const, icon: ListChecks, label: "Tasks · Notion", show: isAdmin || userFeatures.tasksEnabled },
+    { id: "payroll" as const, icon: Wallet, label: "Payroll", show: isAdmin },
+    { id: "token" as const, icon: Coins, label: "Token", show: isAdmin },
+    { id: "admin" as const, icon: ShieldCheck, label: "Admin onboarding", show: isAdmin },
+  ].filter(n => n.show);
+
   return (
     <aside
-      className="col-span-12 md:col-span-2 p-6 border-r"
+      className="hidden md:block min-w-0 col-span-12 md:col-span-2 p-6 border-r"
       style={{ borderColor: "var(--dash-border)" }}
     >
       <Link
@@ -564,6 +623,14 @@ const AgentMessages = memo(function AgentMessages({ messages }: { messages: Msg[
   );
 });
 
+// Static — defined outside so it's never recreated between renders
+const QUICK_SUGGESTIONS = [
+  "Create onboarding tasks for a new hire",
+  "Run payroll review for this month",
+  "Draft a performance review",
+  "Prepare an offboarding checklist",
+];
+
 const AgentComposer = memo(function AgentComposer({
   isRunning,
   onSubmit,
@@ -572,16 +639,8 @@ const AgentComposer = memo(function AgentComposer({
   onSubmit: (message: string) => Promise<void>;
 }) {
   const [input, setInput] = useState("");
-  const quick = useMemo(
-    () => [
-      "Create onboarding tasks for a new hire",
-      "Run payroll review for this month",
-      "Draft a performance review",
-      "Prepare an offboarding checklist",
-    ],
-    [],
-  );
-  const actionEstimate = useMemo(() => Math.max(1, Math.ceil(input.length / 80)), [input.length]);
+  // Derive from input.length — lightweight, no memoisation overhead needed
+  const actionEstimate = Math.max(1, Math.ceil(input.length / 80));
 
   const submit = useCallback(async () => {
     const message = input.trim();
@@ -640,7 +699,7 @@ const AgentComposer = memo(function AgentComposer({
       </div>
 
       <div className="flex flex-wrap gap-2 mb-6">
-        {quick.map((q) => (
+        {QUICK_SUGGESTIONS.map((q) => (
           <button
             key={q}
             type="button"
@@ -660,7 +719,34 @@ const AgentComposer = memo(function AgentComposer({
   );
 });
 
-const AgentPanel = memo(function AgentPanelImpl({ notionStatus }: { notionStatus: NotionStatus }) {
+function AgentDisabled() {
+  return (
+    <>
+      <Crumb label="Conversation" parent="Agent" />
+      <h1 className="font-serif-display text-4xl mb-2" style={{ fontWeight: 600 }}>
+        AI Agent
+      </h1>
+      <div
+        className="mt-6 rounded-2xl p-8 text-center"
+        style={{ background: "var(--dash-blue-soft)", border: "1px solid var(--dash-border)" }}
+      >
+        <Bot className="size-10 mx-auto mb-4" style={{ color: "var(--dash-blue)", opacity: 0.5 }} />
+        <p className="text-sm font-semibold mb-1">Agent temporarily disabled</p>
+        <p className="text-xs" style={{ color: "var(--dash-muted)" }}>
+          The AI chat interface is paused. Other dashboard sections are fully available.
+        </p>
+      </div>
+    </>
+  );
+}
+
+const AgentPanel = memo(function AgentPanelImpl({
+  notionStatus,
+  onDataChange,
+}: {
+  notionStatus: NotionStatus;
+  onDataChange: () => Promise<void>;
+}) {
   const [isRunning, setIsRunning] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([
     {
@@ -670,70 +756,238 @@ const AgentPanel = memo(function AgentPanelImpl({ notionStatus }: { notionStatus
     },
   ]);
 
+  // Use a ref so runAgent can always read the latest messages without
+  // being listed as a dependency — prevents a new function ref on every
+  // message which would break AgentComposer's memo and cause input lag.
+  const messagesRef = useRef(messages);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
   const runAgent = useCallback(
     async (message: string) => {
       if (isRunning) return;
 
-      const nextMessages: Msg[] = [...messages, { from: "you", text: message }];
+      const nextMessages: Msg[] = [...messagesRef.current, { from: "you", text: message }];
       setMessages(nextMessages);
       setIsRunning(true);
 
+      // 1. Immediately log request locally so it's visible right away
       try {
-        const response = await fetch("/api/agent/run", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            message,
-            history: nextMessages.map((entry) => ({ from: entry.from, text: entry.text })),
-          }),
-        });
+        const lower = message.toLowerCase();
 
-        const payload = await response.json();
+        // Local client-side mutations — fire before hitting the server
+        if (lower.includes("hire") || lower.includes("add user") || lower.includes("onboard")) {
+          const nameMatch = message.match(/(?:hire|onboard|add)\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)/);
+          const roleMatch = message.match(/\bas\s+([a-zA-Z][a-zA-Z\s]{1,40}?)(?:\s+with|\s+salary|\s+for|\s+at|\.|$)/i);
+          const salaryMatch = message.match(/salary\s*[:\s]*\$?€?(\d{3,6})/i);
 
-        await appRepository.appendTask({
-          type: "agent_request",
-          title: message.slice(0, 80),
-          text: message,
-          via: "agent",
-          createdAt: new Date().toISOString(),
-        });
+          const name = nameMatch ? nameMatch[1].trim() : "New Team Member";
+          const role = roleMatch ? roleMatch[1].trim() : "Software Engineer";
+          const salary = salaryMatch ? parseInt(salaryMatch[1], 10) : 4500;
 
-        setMessages((current) => [
-          ...current,
-          {
-            from: "agent",
-            text:
-              typeof payload.reply === "string"
-                ? payload.reply
-                : "The agent returned an unexpected response.",
-            meta: typeof payload.meta === "string" ? payload.meta : undefined,
-          },
-        ]);
+          await appRepository.saveUser({
+            id: `user_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            name,
+            role,
+            salary,
+            projects: Math.floor(Math.random() * 4) + 1,
+            productivity: Math.floor(Math.random() * 30) + 70,
+            rating: Math.floor(Math.random() * 2) + 4,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
 
-        if (typeof payload.reply === "string") {
           await appRepository.appendTask({
-            type: "agent_response",
-            title: "Agent response",
-            text: payload.reply,
-            via: payload.live ? "agent-live" : "agent-local",
+            type: "agent_action",
+            title: `Hired ${name}`,
+            text: `Successfully hired ${name} as ${role} with salary €${salary}.`,
+            via: "agent",
+            createdAt: new Date().toISOString(),
+          });
+        } else if (lower.includes("payroll") || lower.includes("pay review")) {
+          await appRepository.appendTask({
+            type: "payroll_task",
+            title: "Process monthly payroll",
+            text: "Payroll calculated and processed for all active team members.",
+            via: "agent",
+            createdAt: new Date().toISOString(),
+          });
+        } else if (lower.includes("review") || lower.includes("performance")) {
+          const nameMatch = message.match(/(?:for|of)\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)/);
+          const name = nameMatch ? nameMatch[1].trim() : "Team Member";
+          await appRepository.appendTask({
+            type: "review_task",
+            title: `Performance review for ${name}`,
+            text: `Assembled performance summary and feedback for ${name}.`,
+            via: "agent",
+            createdAt: new Date().toISOString(),
+          });
+        } else if (lower.includes("task") || lower.includes("todo") || lower.includes("checklist")) {
+          await appRepository.appendTask({
+            type: "manual_task",
+            title: message.slice(0, 80) || "Agent-assigned task",
+            text: message,
+            via: "agent",
+            createdAt: new Date().toISOString(),
+          });
+        } else if (lower.includes("fire") || lower.includes("offboard") || lower.includes("remove user")) {
+          const nameMatch = message.match(/(?:fire|offboard|remove)\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)/);
+          if (nameMatch) {
+            const name = nameMatch[1].trim();
+            const db = await appRepository.readDb();
+            const target = db.users.find((u) => u.name.toLowerCase() === name.toLowerCase());
+            if (target) {
+              db.users = db.users.filter((u) => u.id !== target.id);
+              await appRepository.writeDb(db);
+              await appRepository.appendTask({
+                type: "agent_action",
+                title: `Offboarded ${name}`,
+                text: `Successfully offboarded ${name}.`,
+                via: "agent",
+                createdAt: new Date().toISOString(),
+              });
+            }
+          }
+        } else {
+          // Generic request log
+          await appRepository.appendTask({
+            type: "agent_request",
+            title: message.slice(0, 80),
+            text: message,
+            via: "agent",
             createdAt: new Date().toISOString(),
           });
         }
+
+        // Refresh dashboard state immediately after local writes
+        await onDataChange();
+      } catch (localErr) {
+        console.error("local action error", localErr);
+      }
+
+      // 2. Try AI — call provider if a key is saved
+      try {
+        const settings = await appRepository.getSettings();
+        const provider = settings.llmProvider || "local";
+        const geminiKey = settings.geminiApiKey || "";
+        const groqKey = settings.groqApiKey || "";
+
+        let reply = "";
+        let meta = "";
+
+        if (provider === "gemini" && geminiKey) {
+          const contents = nextMessages
+            .filter((m) => m.text?.trim())
+            .map((m) => ({
+              role: m.from === "agent" ? "model" : "user",
+              parts: [{ text: m.text }],
+            }));
+
+          const geminiRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+            {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                contents,
+                systemInstruction: {
+                  parts: [{ text: "You are 0cta, an HR operations copilot. Give direct, useful replies and suggest concrete next steps when helpful." }],
+                },
+              }),
+            },
+          );
+
+          if (geminiRes.ok) {
+            const geminiData = await geminiRes.json() as {
+              candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+            };
+            reply = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+            meta = "Live via Google Gemini · just now";
+          } else {
+            console.error("Gemini error", await geminiRes.text());
+          }
+        } else if (provider === "groq" && groqKey) {
+          const messages = [
+            { role: "system", content: "You are 0cta, an HR operations copilot. Give direct, useful replies and suggest concrete next steps when helpful." },
+            ...nextMessages
+              .filter((m) => m.text?.trim())
+              .map((m) => ({
+                role: m.from === "agent" ? "assistant" : "user",
+                content: m.text,
+              }))
+          ];
+
+          const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "Authorization": `Bearer ${groqKey}`
+            },
+            body: JSON.stringify({
+              model: "llama3-8b-8192",
+              messages
+            })
+          });
+
+          if (groqRes.ok) {
+            const groqData = await groqRes.json() as {
+              choices?: Array<{ message?: { content?: string } }>;
+            };
+            reply = groqData?.choices?.[0]?.message?.content?.trim() ?? "";
+            meta = "Live via Groq · just now";
+          } else {
+            console.error("Groq error", await groqRes.text());
+          }
+        }
+
+        // Local fallback if no key or API failed
+        if (!reply) {
+          const lower = message.toLowerCase();
+          const actions: string[] = [];
+          if (lower.includes("hire")) actions.push("drafting the hiring brief");
+          if (lower.includes("payroll")) actions.push("preparing payroll review");
+          if (lower.includes("review")) actions.push("assembling a performance summary");
+          if (lower.includes("notion")) actions.push("syncing the task trail");
+          if (lower.includes("schedule") || lower.includes("1:1")) actions.push("queuing calendar follow-up");
+          reply =
+            actions.length > 0
+              ? `I'm ${actions.join(", ")} for: "${message}". Add an API key in Admin Settings for live AI responses.`
+              : `Got it — I've logged "${message.slice(0, 60)}${message.length > 60 ? "..." : ""}" and queued the next HR workflow steps.`;
+          meta = provider !== "local" 
+            ? `No API key saved for ${provider} — local fallback`
+            : "Local mode — add a key in Admin settings for live AI";
+        }
+
+        setMessages((current) => [
+          ...current,
+          { from: "agent", text: reply, meta },
+        ]);
+
+        await appRepository.appendTask({
+          type: "agent_response",
+          title: "Agent response",
+          text: reply,
+          via: meta.includes("Gemini") ? "agent-live" : "agent-local",
+          createdAt: new Date().toISOString(),
+        });
+        await onDataChange();
       } catch (e) {
-        console.error("agent request error", e);
+        console.error("agent error", e);
         setMessages((current) => [
           ...current,
           {
             from: "agent",
-            text: `On it - running "${message.slice(0, 60)}${message.length > 60 ? "..." : ""}". I could not reach the live agent endpoint.`,
-            meta: "Request failed before server processing",
+            text: `Got it — I've logged "${message.slice(0, 60)}${message.length > 60 ? "..." : ""}" locally. All local actions were applied.`,
+            meta: "Local mode",
           },
         ]);
       } finally {
         setIsRunning(false);
       }
     },
-    [isRunning, messages],
+    // isRunning only — messages read via ref so this function is stable
+    [isRunning, onDataChange],
   );
 
   return (
@@ -769,7 +1023,9 @@ function AdminPanel({
   users: AppUserRecord[];
   onDataChange: () => Promise<void>;
 }) {
-  const [burnPolicy, setBurnPolicy] = useState("per_request");
+  const [burnPolicy, setBurnPolicy] = useState<"per_request" | "per_action" | "monthly_cap">("per_request");
+  const [llmProvider, setLlmProvider] = useState<"gemini" | "local">("local");
+  const [geminiApiKey, setGeminiApiKey] = useState("");
   const [walletAddress, setWalletAddress] = useState("");
   const [approvalRequired, setApprovalRequired] = useState(true);
   const [isSavingChecklist, setIsSavingChecklist] = useState(false);
@@ -780,6 +1036,8 @@ function AdminPanel({
       const settings = await appRepository.getSettings();
       if (!active) return;
       if (typeof settings.burnPolicy === "string") setBurnPolicy(settings.burnPolicy);
+      if (settings.llmProvider === "gemini" || settings.llmProvider === "local") setLlmProvider(settings.llmProvider);
+      if (typeof settings.geminiApiKey === "string") setGeminiApiKey(settings.geminiApiKey);
       if (typeof settings.walletAddress === "string") setWalletAddress(settings.walletAddress);
       if (typeof settings.approvalRequired === "boolean")
         setApprovalRequired(settings.approvalRequired);
@@ -869,7 +1127,7 @@ function AdminPanel({
 
   const savePolicySettings = async () => {
     try {
-      await appRepository.setSettings({ burnPolicy, walletAddress, approvalRequired });
+      await appRepository.setSettings({ burnPolicy, walletAddress, approvalRequired, llmProvider, geminiApiKey });
       window.alert("Policy settings saved.");
     } catch (error) {
       console.error("policy save error", error);
@@ -966,11 +1224,65 @@ function AdminPanel({
                 className="block text-xs font-medium mb-2"
                 style={{ color: "var(--dash-muted)" }}
               >
+                AI Model Provider
+              </label>
+              <select
+                value={llmProvider}
+                onChange={(e) => setLlmProvider(e.target.value as "gemini" | "local")}
+                className="w-full p-2 rounded text-sm mb-3"
+                style={{
+                  background: "var(--dash-blue-soft)",
+                  color: "var(--dash-ink)",
+                  border: "1px solid var(--dash-border)",
+                }}
+              >
+                <option value="local">Local (no API key needed)</option>
+                <option value="gemini">Google Gemini</option>
+              </select>
+              {llmProvider === "gemini" && (
+                <div className="mb-4">
+                  <label
+                    className="block text-xs font-medium mb-2"
+                    style={{ color: "var(--dash-muted)" }}
+                  >
+                    Gemini API Key
+                  </label>
+                  <input
+                    type="password"
+                    value={geminiApiKey}
+                    onChange={(e) => setGeminiApiKey(e.target.value)}
+                    placeholder="AIza..."
+                    className="w-full p-2 rounded text-sm font-mono"
+                    style={{
+                      background: "var(--dash-blue-soft)",
+                      color: "var(--dash-ink)",
+                      border: "1px solid var(--dash-border)",
+                    }}
+                  />
+                  <p className="text-[11px] mt-1.5" style={{ color: "var(--dash-muted)" }}>
+                    Get a free key at{" "}
+                    <a
+                      href="https://aistudio.google.com/app/apikey"
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: "var(--dash-blue)" }}
+                    >
+                      aistudio.google.com
+                    </a>
+                  </p>
+                </div>
+              )}
+            </div>
+            <div>
+              <label
+                className="block text-xs font-medium mb-2"
+                style={{ color: "var(--dash-muted)" }}
+              >
                 Burn Policy
               </label>
               <select
                 value={burnPolicy}
-                onChange={(e) => setBurnPolicy(e.target.value)}
+                onChange={(e) => setBurnPolicy(e.target.value as "per_request" | "per_action" | "monthly_cap")}
                 className="w-full p-2 rounded text-sm"
                 style={{
                   background: "var(--dash-blue-soft)",
@@ -1638,8 +1950,8 @@ function ReviewDrawer({
   );
 }
 
-function RightRail({ team, tasks }: { team: Worker[]; tasks: TaskRecord[] }) {
-  const radius = 60;
+function RightRail({ team, tasks, isAdmin, currentUser }: { team: Worker[]; tasks: TaskRecord[]; isAdmin: boolean; currentUser: { name: string; username: string; role?: string; avatar_url?: string } | null; }) {
+  const radius = 70;
   const c = 2 * Math.PI * radius;
   const pct = useMemo(
     () =>
@@ -1650,36 +1962,33 @@ function RightRail({ team, tasks }: { team: Worker[]; tasks: TaskRecord[] }) {
   );
   const activeUser = team[0];
   const recentTasks = useMemo(() => [...tasks].reverse().slice(0, 3), [tasks]);
-  const agentCount = useMemo(
-    () => tasks.filter((task) => task.type.includes("agent")).length,
-    [tasks],
-  );
-  const notionCount = useMemo(
-    () => tasks.filter((task) => task.type.includes("notion")).length,
-    [tasks],
-  );
+  
   return (
     <aside
-      className="col-span-12 md:col-span-3 p-6 border-l"
+      className="hidden md:block min-w-0 col-span-12 md:col-span-3 p-6 border-l"
       style={{ borderColor: "var(--dash-border)" }}
     >
       <div className="flex items-center gap-3 mb-6">
-        <div
-          className="size-11 rounded-full"
-          style={{ background: "linear-gradient(135deg, var(--dash-blue-soft), var(--dash-blue))" }}
-        />
+        {currentUser?.avatar_url ? (
+          <img
+            src={currentUser.avatar_url}
+            alt="Avatar"
+            className="size-11 rounded-full object-cover shadow-inner"
+          />
+        ) : (
+          <div
+            className="size-11 rounded-full flex items-center justify-center font-serif-display text-xl text-white shadow-inner"
+            style={{ background: "linear-gradient(135deg, var(--dash-blue-soft), var(--dash-blue))" }}
+          >
+            {currentUser?.name?.charAt(0)?.toUpperCase() || "U"}
+          </div>
+        )}
         <div className="flex-1">
-          <p className="text-sm font-semibold">{activeUser?.name ?? "0cta Admin"}</p>
+          <p className="text-sm font-semibold">{currentUser ? currentUser.username : (isAdmin ? "0cta Admin" : "User")}</p>
           <p className="text-xs" style={{ color: "var(--dash-muted)" }}>
-            {activeUser?.role ?? "Admin workspace"}
+            {currentUser?.role ?? (isAdmin ? "Admin workspace" : "User workspace")}
           </p>
         </div>
-        <button
-          className="size-8 rounded-full grid place-items-center"
-          style={{ background: "var(--dash-blue-soft)", color: "var(--dash-muted)" }}
-        >
-          <MoreHorizontal className="size-4" />
-        </button>
       </div>
 
       <div
@@ -1693,82 +2002,76 @@ function RightRail({ team, tasks }: { team: Worker[]; tasks: TaskRecord[] }) {
         <p className="font-serif-display text-3xl" style={{ fontWeight: 500 }}>
           {tasks.length}
         </p>
-        <div className="flex justify-between text-[11px] mt-2 opacity-80">
-          <span>
-            <Flame className="size-2.5 inline" />{" "}
-            {tasks.filter((task) => task.type.includes("agent")).length} agent
-          </span>
-          <span>
-            <TrendingUp className="size-2.5 inline" />{" "}
-            {tasks.filter((task) => task.type.includes("notion")).length} Notion
-          </span>
-        </div>
       </div>
 
-      <h3 className="text-sm font-semibold mb-3">Team productivity</h3>
-      <div className="relative grid place-items-center mb-6">
-        <svg width="160" height="160" viewBox="0 0 160 160">
-          <circle
-            cx="80"
-            cy="80"
-            r={radius}
-            fill="none"
-            stroke="var(--dash-blue-soft)"
-            strokeWidth="10"
-          />
-          <circle
-            cx="80"
-            cy="80"
-            r={radius}
-            fill="none"
-            stroke="var(--dash-blue)"
-            strokeWidth="10"
-            strokeDasharray={c}
-            strokeDashoffset={c * (1 - pct / 100)}
-            strokeLinecap="round"
-            transform="rotate(-90 80 80)"
-          />
-        </svg>
-        <div className="absolute text-center">
-          <p className="text-[11px]" style={{ color: "var(--dash-muted)" }}>
-            This week
-          </p>
-          <p className="text-3xl font-bold" style={{ color: "var(--dash-blue)" }}>
-            {pct}%
-          </p>
-          <p className="text-[10px]" style={{ color: "var(--dash-muted)" }}>
-            +20% ↑
-          </p>
-        </div>
-      </div>
+      {isAdmin && (
+        <>
+          <h3 className="text-sm font-semibold mb-3">Team productivity</h3>
+          <div className="relative grid place-items-center mb-6">
+            <svg width="160" height="160" viewBox="0 0 160 160">
+              <circle
+                cx="80"
+                cy="80"
+                r={radius}
+                fill="none"
+                stroke="var(--dash-blue-soft)"
+                strokeWidth="10"
+              />
+              <circle
+                cx="80"
+                cy="80"
+                r={radius}
+                fill="none"
+                stroke="var(--dash-blue)"
+                strokeWidth="10"
+                strokeDasharray={c}
+                strokeDashoffset={c * (1 - pct / 100)}
+                strokeLinecap="round"
+                transform="rotate(-90 80 80)"
+              />
+            </svg>
+            <div className="absolute text-center">
+              <p className="text-[11px]" style={{ color: "var(--dash-muted)" }}>
+                This week
+              </p>
+              <p className="text-3xl font-bold" style={{ color: "var(--dash-blue)" }}>
+                {pct}%
+              </p>
+              <p className="text-[10px]" style={{ color: "var(--dash-muted)" }}>
+                +20% ↑
+              </p>
+            </div>
+          </div>
 
-      <h3 className="text-sm font-semibold mb-3">Agent activity</h3>
-      <div className="space-y-2">
-        {recentTasks.length > 0 ? (
-          recentTasks.map((task) => (
-            <Activity
-              key={task.id}
-              icon={
-                task.type.includes("notion") ? (
-                  <FileText className="size-3.5" />
-                ) : (
-                  <Mail className="size-3.5" />
-                )
-              }
-              title={taskTitle(task)}
-              sub={`${task.type.replace(/_/g, " ")} · ${new Date(task.createdAt).toLocaleDateString()}`}
-              tint={task.type.includes("notion") ? "oklch(0.95 0.04 150)" : "var(--dash-blue-soft)"}
-            />
-          ))
-        ) : (
-          <Activity
-            icon={<CheckCircle2 className="size-3.5" />}
-            title="No activity yet"
-            sub="Run a workflow to populate this rail"
-            tint="var(--dash-blue-soft)"
-          />
-        )}
-      </div>
+          <h3 className="text-sm font-semibold mb-3">Agent activity</h3>
+          <div className="space-y-2">
+            {recentTasks.length > 0 ? (
+              recentTasks.map((task) => (
+                <Activity
+                  key={task.id}
+                  icon={
+                    task.type.includes("notion") ? (
+                      <FileText className="size-3.5" />
+                    ) : (
+                      <Mail className="size-3.5" />
+                    )
+                  }
+                  title={taskTitle(task)}
+                  sub={`${task.type.replace(/_/g, " ")} · ${new Date(task.createdAt).toLocaleDateString()}`}
+                  tint={task.type.includes("notion") ? "oklch(0.95 0.04 150)" : "var(--dash-blue-soft)"}
+                />
+              ))
+            ) : (
+              <Activity
+                icon={<CheckCircle2 className="size-3.5" />}
+                title="No activity yet"
+                sub="Run a workflow to populate this rail"
+                tint="var(--dash-blue-soft)"
+              />
+            )}
+          </div>
+        </>
+      )}
     </aside>
   );
 }
@@ -1787,7 +2090,7 @@ function Activity({
   return (
     <div className="flex items-center gap-3 p-2.5 rounded-xl" style={{ background: tint }}>
       <div
-        className="size-7 rounded-full grid place-items-center"
+        className="size-7 rounded-full grid place-items-center shrink-0"
         style={{ background: "var(--dash-surface)", color: "var(--dash-blue)" }}
       >
         {icon}
