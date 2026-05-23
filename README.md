@@ -1,89 +1,134 @@
-# OCTA - AI HR Assistant & Payroll Management
+# OCTA Hub
 
-A modern React dashboard for HR operations with AI-powered assistance and integrated payroll management.
+OCTA Hub is a Vite-based React HR workflow dashboard with admin onboarding, Notion sync, wallet payments, and a JSON-backed local database.
 
-## Features
-- 🤖 AI HR Assistant (Claude integration ready)
-- 👥 Team & Employee Management
-- 💰 Payroll Processing & Management
-- 📊 Dashboard Analytics
-- 📋 Task Management Integration (Notion ready)
-- 🔐 Secure role-based access
+## Key features
 
-## Tech Stack
-- **Frontend**: React 18 + Vite
-- **Backend**: Express.js
-- **Styling**: CSS-in-JS (custom)
-- **Data**: JSON (hardcoded for testing)
-- **API Ready**: Claude, Notion integrations
+- Admin onboarding checklist for first-time setup
+- Notion connect UI and sync flow
+- AI agent dashboard for task and review automation
+- Wallet connect / Early Card access flow
+- Local JSON persistence fallback for users, tasks, and settings
+- Simple routing with `@tanstack/react-router`
 
-## Installation
+## Getting started
+
+1. Install dependencies:
 
 ```bash
 npm install
 ```
 
-## Development
+2. Start the development server:
 
-Run both client and server:
 ```bash
 npm run dev
 ```
 
-Or separately:
-```bash
-npm run client    # Vite dev server on port 5173
-npm run server    # Express on port 3001
-```
+3. Open the app in the browser and visit `/dashboard`.
 
-## Build
+## Notion integration
 
-```bash
-npm run build
-npm run preview
-```
+This app uses a server-side route to start Notion OAuth.
 
-## Project Structure
+Set these environment variables before running the app:
 
-```
-octa-dashboard/
-├── src/
-│   ├── components/        # React components
-│   ├── pages/             # Page components
-│   ├── services/          # API/backend services
-│   ├── utils/             # Utility functions
-│   ├── hooks/             # Custom React hooks
-│   ├── App.jsx
-│   └── main.jsx
-├── server/
-│   ├── index.js           # Express server
-│   └── data/              # JSON data files
-├── public/                # Static assets
-├── vite.config.js
-├── package.json
-└── .env.example
-```
+- `NOTION_CLIENT_ID`
+- `NOTION_CLIENT_SECRET`
+- `NOTION_REDIRECT_URI`
+- `NOTION_DATABASE_ID`
+- `NOTION_TOKEN` (optional alternative to OAuth cookie auth)
 
-## Environment Setup
-
-Copy `.env.example` to `.env` and configure:
+Example:
 
 ```bash
-cp .env.example .env
+set NOTION_CLIENT_ID=your-client-id
+set NOTION_CLIENT_SECRET=your-client-secret
+set NOTION_REDIRECT_URI=http://localhost:3000
+set NOTION_DATABASE_ID=your-database-id
 ```
 
-## API Endpoints
+Then use the `Connect Notion` button in the dashboard.
 
-- `GET /api/employees` - List all employees
-- `GET /api/payroll` - Payroll records
-- `POST /api/payroll` - Create payroll
-- `GET /api/teams` - Teams
-- `GET /api/tasks` - Tasks
+## Live agent mode
 
-## Future Integrations
-- Claude API for AI assistance
-- Notion API for database sync
-- SQLite for production data
+The dashboard agent now posts to a server endpoint at `/api/agent/run`.
 
----
-Built with ❤️ for African tech companies
+To connect that endpoint to Moltbot, set:
+
+- `MOLTBOT_WEBHOOK_URL`
+- `MOLTBOT_API_KEY` (optional)
+- `MOLTBOT_AGENT_ID` (optional, defaults to `main`)
+
+Alternatively, connect directly to Grok with:
+
+- `XAI_API_KEY` or `GROK_API_KEY`
+- `XAI_API_URL` or `GROK_API_URL` (optional, defaults to `https://api.x.ai/v1/responses`)
+- `XAI_MODEL` or `GROK_MODEL` (optional, defaults to `grok-latest`)
+
+When both Grok and Moltbot are configured, Grok is used first.
+
+For an OpenClaw/Moltbot Gateway, `MOLTBOT_WEBHOOK_URL` should usually be your Gateway OpenResponses endpoint, for example:
+
+```bash
+http://127.0.0.1:18789/v1/responses
+```
+
+The server sends a JSON payload like:
+
+```json
+{
+  "model": "openclaw",
+  "input": "Run payroll for August with bonuses",
+  "user": "octa-dashboard",
+  "message": "Run payroll for August with bonuses",
+  "history": [
+    { "from": "agent", "text": "..." },
+    { "from": "you", "text": "..." }
+  ],
+  "source": "octa-dashboard"
+}
+```
+
+If `MOLTBOT_WEBHOOK_URL` is not set, the app falls back to a local reply.
+
+## Vercel deployment
+
+This repo now deploys as a Vite SPA plus Vercel Functions in the root `api/` directory.
+
+Set these Vercel environment variables as needed:
+
+- `NOTION_CLIENT_ID`
+- `NOTION_CLIENT_SECRET`
+- `NOTION_REDIRECT_URI`
+- `NOTION_DATABASE_ID`
+- `NOTION_TOKEN`
+- `MOLTBOT_WEBHOOK_URL`
+- `MOLTBOT_API_KEY`
+- `MOLTBOT_AGENT_ID`
+- `GROK_API_KEY`
+- `GROK_API_URL`
+- `GROK_MODEL`
+- `XAI_API_KEY`
+- `XAI_API_URL`
+- `XAI_MODEL`
+
+## Admin onboarding
+
+The dashboard now contains an `Admin onboarding` section with:
+
+- workspace setup
+- Notion connection
+- token policy configuration
+- wallet enablement
+- admin invite checklist
+
+## Early Card
+
+The landing page links to an Early Card flow at `/buy`. Users can complete launch tasks, submit a quote about AI agents on Base, and record an Early Supporter Pass mint in the local JSON-backed datastore.
+
+## Notes
+
+- `bun.lock` has been removed to clear leftover `lovable` dependencies.
+- The app is built to run with standard Node/npm tooling.
+- The local persistence layer now sits behind a typed repository in `src/lib/storage/`, so swapping to SQLite/Postgres later should only require a new adapter instead of route-level rewrites.
