@@ -1,0 +1,16 @@
+{
+  "connected": false,
+  "apiKey": null,
+  "workspaceName": null,
+  "databaseIds": {
+    "employees": null,
+    "payroll": null,
+    "tasks": null
+  },
+  "connectedAt": null,
+  "slack": {
+    "connected": false,
+    "botToken": null,
+    "workspaceId": null
+  }
+}

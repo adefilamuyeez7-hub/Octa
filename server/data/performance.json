@@ -1,0 +1,109 @@
+{
+  "trackingSessions": [
+    {
+      "employeeId": "amara_osei",
+      "employeeName": "Amara Osei",
+      "date": "2026-05-23",
+      "loginTime": "09:00",
+      "logoutTime": "17:30",
+      "activeMinutes": 510,
+      "tasksCompleted": 3,
+      "tasksAssigned": 5,
+      "contributionScore": 85,
+      "interactionsCount": 12
+    },
+    {
+      "employeeId": "kwame_asante",
+      "employeeName": "Kwame Asante",
+      "date": "2026-05-23",
+      "loginTime": "08:30",
+      "logoutTime": "18:00",
+      "activeMinutes": 570,
+      "tasksCompleted": 4,
+      "tasksAssigned": 4,
+      "contributionScore": 90,
+      "interactionsCount": 15
+    },
+    {
+      "employeeId": "zara_mensah",
+      "employeeName": "Zara Mensah",
+      "date": "2026-05-23",
+      "loginTime": "09:15",
+      "logoutTime": "17:45",
+      "activeMinutes": 510,
+      "tasksCompleted": 2,
+      "tasksAssigned": 6,
+      "contributionScore": 75,
+      "interactionsCount": 8
+    },
+    {
+      "employeeId": "emeka_nwosu",
+      "employeeName": "Emeka Nwosu",
+      "date": "2026-05-23",
+      "loginTime": "09:00",
+      "logoutTime": "19:00",
+      "activeMinutes": 600,
+      "tasksCompleted": 5,
+      "tasksAssigned": 5,
+      "contributionScore": 95,
+      "interactionsCount": 18
+    }
+  ],
+  "taskDelivery": [
+    {
+      "taskId": "task_001",
+      "title": "Payroll Processing - May",
+      "assignedTo": "kwame_asante",
+      "assignedDate": "2026-05-20",
+      "dueDate": "2026-05-25",
+      "completedDate": "2026-05-23",
+      "status": "completed",
+      "daysEarly": 2,
+      "priority": "high",
+      "rating": 5,
+      "proofLink": "https://docs.company.com/payroll-may-2026",
+      "description": "Processed all payroll entries with 100% accuracy"
+    },
+    {
+      "taskId": "task_002",
+      "title": "Onboarding Documentation",
+      "assignedTo": "amara_osei",
+      "assignedDate": "2026-05-15",
+      "dueDate": "2026-05-30",
+      "completedDate": "2026-05-23",
+      "status": "completed",
+      "daysEarly": 7,
+      "priority": "medium",
+      "rating": 4,
+      "proofLink": "https://docs.company.com/onboarding-checklist",
+      "description": "Created comprehensive onboarding guide"
+    },
+    {
+      "taskId": "task_003",
+      "title": "System Infrastructure Review",
+      "assignedTo": "emeka_nwosu",
+      "assignedDate": "2026-05-10",
+      "dueDate": "2026-05-26",
+      "completedDate": "2026-05-23",
+      "status": "completed",
+      "daysEarly": 3,
+      "priority": "high",
+      "rating": 5,
+      "proofLink": "https://github.com/company/infrastructure-review",
+      "description": "Completed full infrastructure audit and optimization"
+    },
+    {
+      "taskId": "task_004",
+      "title": "Team Performance Reports",
+      "assignedTo": "zara_mensah",
+      "assignedDate": "2026-05-22",
+      "dueDate": "2026-05-27",
+      "completedDate": null,
+      "status": "in-progress",
+      "priority": "medium",
+      "rating": null,
+      "proofLink": null,
+      "description": "Generating comprehensive team analytics"
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+[
+  {
+    "id": "team-001",
+    "name": "Product",
+    "description": "Product strategy and management",
+    "lead": "Amara Osei",
+    "members": ["emp-001"],
+    "budget": 150000
+  },
+  {
+    "id": "team-002",
+    "name": "Engineering",
+    "description": "Software development and infrastructure",
+    "lead": "Kwame Asante",
+    "members": ["emp-002"],
+    "budget": 250000
+  },
+  {
+    "id": "team-003",
+    "name": "Design",
+    "description": "UX/UI design and branding",
+    "lead": "Zara Mensah",
+    "members": ["emp-003"],
+    "budget": 100000
+  },
+  {
+    "id": "team-004",
+    "name": "Operations",
+    "description": "HR, finance, and administration",
+    "lead": "Emeka Nwosu",
+    "members": ["emp-004"],
+    "budget": 120000
+  }
+]

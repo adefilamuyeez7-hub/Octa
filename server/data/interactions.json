@@ -1,0 +1,114 @@
+[
+  {
+    "timestamp": "2026-05-23T11:20:36.290Z",
+    "input": "hello",
+    "response": "👋 Welcome to OCTA HR Assistant!\n\nI'm your AI-powered HR and Payroll assistant. I can help you with:\n\n💼 **HR Management**\n- View and manage employees\n- Onboarding new staff\n- Team structure\n\n💰 **Payroll**\n- Calculate taxes and deductions\n- Generate payroll reports\n- Salary analysis\n\n📋 **Tasks**\n- Create and manage tasks\n- Track deadlines\n- Team assignments\n\n🎓 **Learning**\n- I learn from your interactions\n- Better responses over time\n\nWhat would you like help with?",
+    "category": "general",
+    "pattern": "hello",
+    "wordCount": 1
+  },
+  {
+    "timestamp": "2026-05-23T11:20:44.450Z",
+    "input": "how is payroll tax calculated in ghana",
+    "response": "Payroll tax in Ghana is typically calculated at 28% of gross salary. Here's the breakdown:\n\n📊 Tax Calculation:\n• Gross Salary: Employee's base monthly pay\n• PAYE Tax: 28% of gross salary\n• Deductions: Pension (5%), National Insurance (2.75%)\n• Net Salary: Gross - Tax - Deductions\n\nExample:\n- Gross: GHS 5,000\n- Tax (28%): GHS 1,400\n- Deductions: GHS 387.50\n- Net: GHS 3,212.50\n\nWould you like me to calculate payroll for specific employees?",
+    "category": "payroll",
+    "pattern": "payroll tax",
+    "wordCount": 7
+  },
+  {
+    "timestamp": "2026-05-23T11:20:52.317Z",
+    "input": "list all employees",
+    "response": "👥 Current Team (4 members):\n\n1. **Amara Osei**\n   - Role: HR Manager\n   - Email: amara.osei@company.com\n   - Phone: +233 20 123 4567\n   - Salary: GHS 6,500/month\n\n2. **Kwame Asante**\n   - Role: Finance Lead\n   - Email: kwame.asante@company.com\n   - Phone: +233 20 234 5678\n   - Salary: GHS 5,500/month\n\n3. **Zara Mensah**\n   - Role: Operations Manager\n   - Email: zara.mensah@company.com\n   - Phone: +233 20 345 6789\n   - Salary: GHS 4,800/month\n\n4. **Emeka Nwosu**\n   - Role: Developer\n   - Email: emeka.nwosu@company.com\n   - Phone: +233 20 456 7890\n   - Salary: GHS 4,200/month\n\nNeed info about a specific person?",
+    "category": "employees",
+    "pattern": "list employees",
+    "wordCount": 3
+  },
+  {
+    "timestamp": "2026-05-23T11:21:43.972Z",
+    "input": "create onboarding tasks for new engineer",
+    "response": "🎯 Onboarding New Employee:\n\nI can help with:\n1. **Create Employee Record** - Add name, role, salary\n2. **Setup Payroll** - Configure salary structure\n3. **Generate Documents** - Onboarding checklist, contract\n4. **Create Tasks** - Onboarding timeline\n5. **Team Integration** - Assign to team\n\nWhat details do you have for the new employee?",
+    "category": "employees",
+    "pattern": "onboard",
+    "wordCount": 6
+  },
+  {
+    "timestamp": "2026-05-23T11:21:53.237Z",
+    "input": "cre",
+    "response": "I understood you're asking: \"cre\"\n\nI'm still learning! Here's what I can help with:\n\n📋 **Payroll** - Tax calculations, salary reports\n👥 **Employees** - Staff info, onboarding\n✅ **Tasks** - Create and manage work items\n\nTry asking about payroll, employees, or tasks, and I'll provide more specific help!",
+    "category": "general",
+    "pattern": "no-match",
+    "wordCount": 1
+  },
+  {
+    "timestamp": "2026-05-23T11:22:07.072Z",
+    "input": "payroll",
+    "response": "Payroll tax in Ghana is typically calculated at 28% of gross salary. Here's the breakdown:\n\n📊 Tax Calculation:\n• Gross Salary: Employee's base monthly pay\n• PAYE Tax: 28% of gross salary\n• Deductions: Pension (5%), National Insurance (2.75%)\n• Net Salary: Gross - Tax - Deductions\n\nExample:\n- Gross: GHS 5,000\n- Tax (28%): GHS 1,400\n- Deductions: GHS 387.50\n- Net: GHS 3,212.50\n\nWould you like me to calculate payroll for specific employees?",
+    "category": "payroll",
+    "pattern": "payroll tax",
+    "wordCount": 1
+  },
+  {
+    "timestamp": "2026-05-23T11:24:01.516Z",
+    "input": "create to do task",
+    "response": "📝 Task Creation:\n\nI can help create tasks for:\n• Employee onboarding\n• Payroll processing\n• HR reviews\n• Team projects\n• Deadlines\n\nWhat task would you like to create? Provide:\n1. Task title\n2. Description\n3. Assignee (optional)\n4. Deadline (optional)\n5. Priority (Low/Medium/High)",
+    "category": "tasks",
+    "pattern": "create task",
+    "wordCount": 4
+  },
+  {
+    "timestamp": "2026-05-23T11:24:19.832Z",
+    "input": "assign ui update",
+    "response": "📝 Task Creation:\n\nI can help create tasks for:\n• Employee onboarding\n• Payroll processing\n• HR reviews\n• Team projects\n• Deadlines\n\nWhat task would you like to create? Provide:\n1. Task title\n2. Description\n3. Assignee (optional)\n4. Deadline (optional)\n5. Priority (Low/Medium/High)",
+    "category": "tasks",
+    "pattern": "assign task",
+    "wordCount": 3
+  },
+  {
+    "timestamp": "2026-05-23T11:30:20.880Z",
+    "input": "hey",
+    "response": "👋 Welcome to OCTA HR Assistant!\n\nI'm your AI-powered HR and Payroll assistant. I can help you with:\n\n💼 **HR Management**\n- View and manage employees\n- Onboarding new staff\n- Team structure\n\n💰 **Payroll**\n- Calculate taxes and deductions\n- Generate payroll reports\n- Salary analysis\n\n📋 **Tasks**\n- Create and manage tasks\n- Track deadlines\n- Team assignments\n\n🎓 **Learning**\n- I learn from your interactions\n- Better responses over time\n\nWhat would you like help with?",
+    "category": "general",
+    "pattern": "hey",
+    "wordCount": 1
+  },
+  {
+    "timestamp": "2026-05-23T11:30:28.031Z",
+    "input": "sack emeka",
+    "response": "🤖 My Capabilities:\n\n✨ **Core Features:**\n1. **Payroll Management** - Calculate taxes, generate reports\n2. **Employee Database** - Manage team info and data\n3. **Task Management** - Create, assign, track tasks\n4. **HR Insights** - Team analytics and reporting\n5. **Learning** - I improve based on your feedback\n\n🔗 **Integrations:**\n- Notion (planned) - For wiki and docs\n- Spreadsheets - Data export\n- Email - Notifications\n\nWhat would you like to do first?",
+    "category": "general",
+    "pattern": "help me",
+    "wordCount": 2
+  },
+  {
+    "timestamp": "2026-05-23T11:30:43.388Z",
+    "input": "set up notion",
+    "response": "I understood you're asking: \"set up notion\"\n\nI'm still learning! Here's what I can help with:\n\n📋 **Payroll** - Tax calculations, salary reports\n👥 **Employees** - Staff info, onboarding\n✅ **Tasks** - Create and manage work items\n\nTry asking about payroll, employees, or tasks, and I'll provide more specific help!",
+    "category": "general",
+    "pattern": "no-match",
+    "wordCount": 3
+  },
+  {
+    "timestamp": "2026-05-23T11:35:39.339Z",
+    "input": "you they mad",
+    "response": "I understood you're asking: \"you they mad\"\n\nI'm still learning! Here's what I can help with:\n\n📋 **Payroll** - Tax calculations, salary reports\n👥 **Employees** - Staff info, onboarding\n✅ **Tasks** - Create and manage work items\n\nTry asking about payroll, employees, or tasks, and I'll provide more specific help!",
+    "category": "general",
+    "pattern": "no-match",
+    "wordCount": 3
+  },
+  {
+    "timestamp": "2026-05-23T11:40:28.971Z",
+    "input": "hello",
+    "response": "I understood you're asking: \"hello\"\n\nI'm still learning! Here's what I can help with:\n\n📋 **Payroll** - Tax calculations, salary reports\n👥 **Employees** - Staff info, onboarding\n✅ **Tasks** - Create and manage work items\n\nTry asking about payroll, employees, or tasks, and I'll provide more specific help!",
+    "category": "general",
+    "pattern": "no-match",
+    "wordCount": 1
+  },
+  {
+    "timestamp": "2026-05-23T11:40:43.126Z",
+    "input": "hello",
+    "response": "I understood you're asking: \"hello\"\n\nI'm still learning! Here's what I can help with:\n\n📋 **Payroll** - Tax calculations, salary reports\n👥 **Employees** - Staff info, onboarding\n✅ **Tasks** - Create and manage work items\n\nTry asking about payroll, employees, or tasks, and I'll provide more specific help!",
+    "category": "general",
+    "pattern": "no-match",
+    "wordCount": 1
+  }
+]

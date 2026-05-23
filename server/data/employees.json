@@ -1,0 +1,54 @@
+[
+  {
+    "id": "emp-001",
+    "name": "Amara Osei",
+    "email": "amara@octa.tech",
+    "role": "Product Lead",
+    "department": "Product",
+    "salary": 75000,
+    "currency": "GHS",
+    "joinDate": "2023-01-15",
+    "status": "active",
+    "phone": "+233 24 123 4567",
+    "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Amara"
+  },
+  {
+    "id": "emp-002",
+    "name": "Kwame Asante",
+    "email": "kwame@octa.tech",
+    "role": "Senior Engineer",
+    "department": "Engineering",
+    "salary": 85000,
+    "currency": "GHS",
+    "joinDate": "2022-06-10",
+    "status": "active",
+    "phone": "+233 50 987 6543",
+    "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Kwame"
+  },
+  {
+    "id": "emp-003",
+    "name": "Zara Mensah",
+    "email": "zara@octa.tech",
+    "role": "Design Lead",
+    "department": "Design",
+    "salary": 65000,
+    "currency": "GHS",
+    "joinDate": "2023-03-01",
+    "status": "active",
+    "phone": "+233 55 456 7890",
+    "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Zara"
+  },
+  {
+    "id": "emp-004",
+    "name": "Emeka Nwosu",
+    "email": "emeka@octa.tech",
+    "role": "Operations Manager",
+    "department": "Operations",
+    "salary": 60000,
+    "currency": "GHS",
+    "joinDate": "2023-02-20",
+    "status": "active",
+    "phone": "+233 20 543 2109",
+    "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Emeka"
+  }
+]
