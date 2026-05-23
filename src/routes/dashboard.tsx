@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, memo, useCallback } from "react";
-import { Textarea } from "@/components/ui/textarea";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Users,
   ListChecks,
@@ -12,7 +11,6 @@ import {
   MoreHorizontal,
   ChevronDown,
   SlidersHorizontal,
-  Send,
   Sparkles,
   Mail,
   FileText,
@@ -24,15 +22,17 @@ import {
   TrendingUp,
   Plus,
   ShieldCheck,
+  SendHorizontal,
 } from "lucide-react";
 import { appRepository, type AppUserRecord, type TaskRecord } from "../lib/storage";
+import { Textarea } from "../components/ui/textarea";
 
 export const Route = createFileRoute("/dashboard")({
   component: Dashboard,
   head: () => ({ meta: [{ title: "0cta — Dashboard" }] }),
 });
 
-type Section = "people" | "agent" | "tasks" | "payroll" | "token" | "admin";
+type Section = "chat" | "people" | "tasks" | "payroll" | "token" | "admin";
 type NotionStatus = { oauthReady: boolean; databaseReady: boolean; connected: boolean };
 
 type Worker = {
@@ -47,6 +47,34 @@ type Worker = {
   tasksThisWeek: number;
   rating: number;
 };
+
+type ChatMessage = {
+  id: string;
+  role: "assistant" | "user";
+  text: string;
+  tone?: "default" | "highlight";
+};
+
+const BOT_SUGGESTIONS = [
+  "Summarize who needs a review this week",
+  "Draft a reply for a payroll discrepancy",
+  "What should I prioritize for onboarding?",
+  "Turn today's activity into a leadership update",
+];
+
+const BOT_SEED_MESSAGES: ChatMessage[] = [
+  {
+    id: "seed-1",
+    role: "assistant",
+    tone: "highlight",
+    text: "Morning. I can help you rehearse HR ops requests before we wire the backend. Ask for a summary, draft, or next-step plan.",
+  },
+  {
+    id: "seed-2",
+    role: "assistant",
+    text: "Try one of the suggested prompts below, or type a messy real-world request and I’ll turn it into a polished response.",
+  },
+];
 
 function numberFromRecord(record: AppUserRecord, key: string, fallback: number): number {
   const value = record[key];
@@ -83,7 +111,7 @@ function taskTitle(task: TaskRecord): string {
 }
 
 function Dashboard() {
-  const [section, setSection] = useState<Section>("agent");
+  const [section, setSection] = useState<Section>("chat");
   const [reviewing, setReviewing] = useState<Worker | null>(null);
   const [notionStatus, setNotionStatus] = useState<NotionStatus>({
     oauthReady: false,
@@ -161,16 +189,26 @@ function Dashboard() {
           style={{ borderColor: "var(--dash-border)" }}
         >
           <h2 className="font-serif-display text-xl">0cta</h2>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap justify-end">
             <button
-              onClick={() => setSection("agent")}
+              onClick={() => setSection("chat")}
               className="px-3 py-1 text-sm rounded"
               style={{
-                background: section === "agent" ? "var(--dash-blue)" : "transparent",
-                color: section === "agent" ? "white" : "var(--dash-muted)",
+                background: section === "chat" ? "var(--dash-blue)" : "transparent",
+                color: section === "chat" ? "white" : "var(--dash-muted)",
               }}
             >
               Chat
+            </button>
+            <button
+              onClick={() => setSection("people")}
+              className="px-3 py-1 text-sm rounded"
+              style={{
+                background: section === "people" ? "var(--dash-blue)" : "transparent",
+                color: section === "people" ? "white" : "var(--dash-muted)",
+              }}
+            >
+              People
             </button>
             <button
               onClick={() => setSection("tasks")}
@@ -183,14 +221,14 @@ function Dashboard() {
               Tasks
             </button>
             <button
-              onClick={() => setSection("people")}
+              onClick={() => setSection("payroll")}
               className="px-3 py-1 text-sm rounded"
               style={{
-                background: section === "people" ? "var(--dash-blue)" : "transparent",
-                color: section === "people" ? "white" : "var(--dash-muted)",
+                background: section === "payroll" ? "var(--dash-blue)" : "transparent",
+                color: section === "payroll" ? "white" : "var(--dash-muted)",
               }}
             >
-              People
+              Payroll
             </button>
           </div>
         </div>
@@ -200,11 +238,8 @@ function Dashboard() {
           <Sidebar section={section} setSection={setSection} tasks={tasks} />
         </div>
 
-        {/* Main content - Agent chat is primary on mobile */}
-        <main
-          className={`col-span-12 ${section === "agent" ? "md:col-span-7" : "hidden md:block md:col-span-7"} p-4 md:p-8 min-h-[820px]`}
-        >
-          {section === "agent" && <AgentPanel notionStatus={notionStatus} />}
+        <main className="col-span-12 md:col-span-7 p-4 md:p-8 min-h-[820px]">
+          {section === "chat" && <ChatPanel team={team} tasks={tasks} />}
           {section === "people" && <PeoplePanel team={team} onReview={setReviewing} />}
           {section === "tasks" && (
             <TasksPanel notionStatus={notionStatus} tasks={tasks} onDataChange={refreshData} />
@@ -222,8 +257,8 @@ function Dashboard() {
         </main>
 
         {/* Right rail hidden on mobile */}
-        <div className="hidden md:block">
-          <RightRail team={team} tasks={tasks} />
+        <div className={`hidden md:block ${section === "chat" ? "md:hidden" : ""}`}>
+          <ChatbotRail team={team} tasks={tasks} />
         </div>
       </div>
 
@@ -243,13 +278,9 @@ function Sidebar({
   setSection: (s: Section) => void;
   tasks: TaskRecord[];
 }) {
-  const burnedToday = useMemo(
-    () =>
-      tasks.filter((task) => task.type.includes("agent") || task.type.includes("notion")).length,
-    [tasks],
-  );
+  const burnedToday = useMemo(() => tasks.length, [tasks]);
   const nav = [
-    { id: "agent" as const, icon: Sparkles, label: "AI Agent" },
+    { id: "chat" as const, icon: Sparkles, label: "Chat" },
     { id: "people" as const, icon: Users, label: "People" },
     { id: "tasks" as const, icon: ListChecks, label: "Tasks · Notion" },
     { id: "payroll" as const, icon: Wallet, label: "Payroll" },
@@ -304,7 +335,7 @@ function Sidebar({
           {burnedToday}
         </p>
         <p className="text-[11px]" style={{ color: "var(--dash-muted)" }}>
-          agent actions logged
+          actions logged
         </p>
       </div>
     </aside>
@@ -381,7 +412,7 @@ function PeoplePanel({ team, onReview }: { team: Worker[]; onReview: (w: Worker)
           </div>
 
           <p className="text-xs mt-6 text-center" style={{ color: "var(--dash-muted)" }}>
-            Click a card to open agent review & task breakdown
+            Click a card to open the review & task breakdown
           </p>
         </>
       ) : (
@@ -482,8 +513,6 @@ function Crumb({ label, parent }: { label: string; parent: string }) {
   );
 }
 
-type Msg = { from: "you" | "agent"; text: string; meta?: string };
-
 async function createTaskViaApi({
   title,
   text,
@@ -515,248 +544,6 @@ async function createTaskViaApi({
 
   return response.json();
 }
-
-const AgentMessages = memo(function AgentMessages({ messages }: { messages: Msg[] }) {
-  return (
-    <div className="space-y-3">
-      {messages.map((m, i) => (
-        <div key={i} className={`flex gap-3 ${m.from === "you" ? "flex-row-reverse" : ""}`}>
-          <div
-            className="size-8 rounded-full grid place-items-center shrink-0 text-xs font-semibold"
-            style={{
-              background: m.from === "agent" ? "var(--dash-blue)" : "var(--dash-blue-soft)",
-              color: m.from === "agent" ? "white" : "var(--dash-blue)",
-            }}
-          >
-            {m.from === "agent" ? <Bot className="size-4" /> : "V"}
-          </div>
-          <div
-            className={`max-w-[80%] rounded-2xl p-3.5 text-sm ${m.from === "you" ? "text-white" : ""}`}
-            style={{
-              background: m.from === "you" ? "var(--dash-blue)" : "var(--dash-surface)",
-              border: m.from === "you" ? "none" : "1px solid var(--dash-border)",
-            }}
-          >
-            <p>{m.text}</p>
-            {m.meta && <p className="text-[10px] mt-1.5 opacity-60">{m.meta}</p>}
-            {m.from === "agent" && (
-              <div className="flex gap-1.5 mt-2.5">
-                <button
-                  type="button"
-                  className="text-[10px] px-2 py-1 rounded-md"
-                  style={{ background: "var(--dash-blue-soft)", color: "var(--dash-blue)" }}
-                >
-                  Helpful
-                </button>
-                <button
-                  type="button"
-                  className="text-[10px] px-2 py-1 rounded-md"
-                  style={{ background: "var(--dash-blue-soft)", color: "var(--dash-muted)" }}
-                >
-                  Revise
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-});
-
-const AgentComposer = memo(function AgentComposer({
-  isRunning,
-  onSubmit,
-}: {
-  isRunning: boolean;
-  onSubmit: (message: string) => Promise<void>;
-}) {
-  const [input, setInput] = useState("");
-  const quick = useMemo(
-    () => [
-      "Create onboarding tasks for a new hire",
-      "Run payroll review for this month",
-      "Draft a performance review",
-      "Prepare an offboarding checklist",
-    ],
-    [],
-  );
-  const actionEstimate = useMemo(() => Math.max(1, Math.ceil(input.length / 80)), [input.length]);
-
-  const submit = useCallback(async () => {
-    const message = input.trim();
-    if (!message || isRunning) return;
-    setInput("");
-    await onSubmit(message);
-  }, [input, isRunning, onSubmit]);
-
-  return (
-    <>
-      <div
-        className="rounded-2xl p-4 mb-4"
-        style={{ background: "var(--dash-blue-soft)", border: "1px solid var(--dash-border)" }}
-      >
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void submit();
-          }}
-        >
-          <Textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault();
-                void submit();
-              }
-            }}
-            placeholder="e.g. Create onboarding tasks for a new product manager, push the checklist to Notion, and queue payroll setup."
-            rows={3}
-            disabled={isRunning}
-            className="w-full bg-transparent text-sm resize-y focus:outline-none placeholder:opacity-50"
-          />
-          <div className="flex items-center justify-between mt-2 gap-3">
-            <div
-              className="flex items-center gap-2 text-[11px]"
-              style={{ color: "var(--dash-muted)" }}
-            >
-              <Flame className="size-3" /> est. actions ~{actionEstimate} · Ctrl/Command+Enter to
-              send
-            </div>
-            <button
-              type="submit"
-              disabled={isRunning || !input.trim()}
-              className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-white"
-              style={{
-                background: "var(--dash-blue)",
-                opacity: isRunning || !input.trim() ? 0.7 : 1,
-              }}
-            >
-              <Send className="size-3.5" /> {isRunning ? "Running..." : "Run"}
-            </button>
-          </div>
-        </form>
-      </div>
-
-      <div className="flex flex-wrap gap-2 mb-6">
-        {quick.map((q) => (
-          <button
-            key={q}
-            type="button"
-            onClick={() => setInput(q)}
-            className="text-xs px-3 py-1.5 rounded-full hover:opacity-80"
-            style={{
-              background: "var(--dash-surface)",
-              border: "1px solid var(--dash-border)",
-              color: "var(--dash-muted)",
-            }}
-          >
-            {q}
-          </button>
-        ))}
-      </div>
-    </>
-  );
-});
-
-const AgentPanel = memo(function AgentPanelImpl({ notionStatus }: { notionStatus: NotionStatus }) {
-  const [isRunning, setIsRunning] = useState(false);
-  const [messages, setMessages] = useState<Msg[]>([
-    {
-      from: "agent",
-      text: "Tell me the HR workflow you want handled. I can log the request locally and sync to Notion when connected.",
-      meta: "Ready",
-    },
-  ]);
-
-  const runAgent = useCallback(
-    async (message: string) => {
-      if (isRunning) return;
-
-      const nextMessages: Msg[] = [...messages, { from: "you", text: message }];
-      setMessages(nextMessages);
-      setIsRunning(true);
-
-      try {
-        const response = await fetch("/api/agent/run", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            message,
-            history: nextMessages.map((entry) => ({ from: entry.from, text: entry.text })),
-          }),
-        });
-
-        const payload = await response.json();
-
-        await appRepository.appendTask({
-          type: "agent_request",
-          title: message.slice(0, 80),
-          text: message,
-          via: "agent",
-          createdAt: new Date().toISOString(),
-        });
-
-        setMessages((current) => [
-          ...current,
-          {
-            from: "agent",
-            text:
-              typeof payload.reply === "string"
-                ? payload.reply
-                : "The agent returned an unexpected response.",
-            meta: typeof payload.meta === "string" ? payload.meta : undefined,
-          },
-        ]);
-
-        if (typeof payload.reply === "string") {
-          await appRepository.appendTask({
-            type: "agent_response",
-            title: "Agent response",
-            text: payload.reply,
-            via: payload.live ? "agent-live" : "agent-local",
-            createdAt: new Date().toISOString(),
-          });
-        }
-      } catch (e) {
-        console.error("agent request error", e);
-        setMessages((current) => [
-          ...current,
-          {
-            from: "agent",
-            text: `On it - running "${message.slice(0, 60)}${message.length > 60 ? "..." : ""}". I could not reach the live agent endpoint.`,
-            meta: "Request failed before server processing",
-          },
-        ]);
-      } finally {
-        setIsRunning(false);
-      }
-    },
-    [isRunning, messages],
-  );
-
-  return (
-    <>
-      <Crumb label="Conversation" parent="Agent" />
-      <h1 className="font-serif-display text-4xl mb-2" style={{ fontWeight: 600 }}>
-        What should 0cta do?
-      </h1>
-      <p className="text-sm mb-6" style={{ color: "var(--dash-muted)" }}>
-        Plain text in. Hires, payroll, reviews and Notion updates out.
-      </p>
-      <p className="text-xs mb-4" style={{ color: "var(--dash-muted)" }}>
-        Live mode uses <code>MOLTBOT_WEBHOOK_URL</code>. Notion logging is{" "}
-        {notionStatus.connected ? "connected" : "not connected"}.
-      </p>
-
-      <AgentComposer isRunning={isRunning} onSubmit={runAgent} />
-
-      <h3 className="text-sm font-semibold mb-3">Agent feedback</h3>
-      <AgentMessages messages={messages} />
-    </>
-  );
-});
 
 function AdminPanel({
   notionStatus,
@@ -1324,7 +1111,6 @@ function KPI({ label, value, highlight }: { label: string; value: string; highli
 
 function TokenPanel({ tasks }: { tasks: TaskRecord[] }) {
   const activity = useMemo(() => [...tasks].reverse().slice(0, 6), [tasks]);
-  const agentTasks = useMemo(() => tasks.filter((task) => task.type.includes("agent")), [tasks]);
   const notionTasks = useMemo(
     () =>
       tasks.filter(
@@ -1358,7 +1144,7 @@ function TokenPanel({ tasks }: { tasks: TaskRecord[] }) {
               {tasks.length}
             </p>
             <p className="text-xs opacity-70 mt-1">
-              tasks, agent requests, Notion events, and Early Card actions
+              tasks, Notion events, and Early Card actions
             </p>
           </div>
           <span
@@ -1370,8 +1156,8 @@ function TokenPanel({ tasks }: { tasks: TaskRecord[] }) {
         </div>
         <div className="grid grid-cols-3 gap-4 text-xs">
           <div>
-            <p className="opacity-60">Agent</p>
-            <p className="text-lg font-bold mt-0.5">{agentTasks.length}</p>
+            <p className="opacity-60">Tasks</p>
+            <p className="text-lg font-bold mt-0.5">{tasks.length}</p>
           </div>
           <div>
             <p className="opacity-60">Notion</p>
@@ -1401,7 +1187,7 @@ function TokenPanel({ tasks }: { tasks: TaskRecord[] }) {
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-6">
-        <BotStat name="Agent requests" calls={agentTasks.length} burn={agentTasks.length} />
+        <BotStat name="Task queue" calls={tasks.length} burn={tasks.length} />
         <BotStat name="Notion sync" calls={notionTasks.length} burn={notionTasks.length} />
         <BotStat name="Manual tasks" calls={manualTasks.length} burn={manualTasks.length} />
         <BotStat name="Early Card" calls={earlyCardTasks.length} burn={earlyCardTasks.length} />
@@ -1442,7 +1228,7 @@ function TokenPanel({ tasks }: { tasks: TaskRecord[] }) {
         ) : (
           <EmptyState
             title="No activity yet"
-            detail="Run an agent request, create a task, or complete Early Card actions to populate this feed."
+            detail="Create a task, sync Notion, or complete Early Card actions to populate this feed."
           />
         )}
       </div>
@@ -1596,7 +1382,7 @@ function ReviewDrawer({
           )}
         </div>
 
-        <h3 className="text-sm font-semibold mb-3">Agent review · last 30 days</h3>
+        <h3 className="text-sm font-semibold mb-3">Review · last 30 days</h3>
         <div
           className="rounded-xl p-4 text-sm mb-4"
           style={{ background: "var(--dash-blue-soft)" }}
@@ -1612,7 +1398,7 @@ function ReviewDrawer({
               ? "Strong shipping cadence, low review friction."
               : "Consider scoping smaller tasks and a weekly 1:1."}
           </p>
-          <p className="text-[11px] opacity-70">Generated by Review agent · burned 14 $OCTA</p>
+          <p className="text-[11px] opacity-70">Generated by review workflow · burned 14 $OCTA</p>
         </div>
 
         <div className="flex gap-2">
@@ -1650,10 +1436,6 @@ function RightRail({ team, tasks }: { team: Worker[]; tasks: TaskRecord[] }) {
   );
   const activeUser = team[0];
   const recentTasks = useMemo(() => [...tasks].reverse().slice(0, 3), [tasks]);
-  const agentCount = useMemo(
-    () => tasks.filter((task) => task.type.includes("agent")).length,
-    [tasks],
-  );
   const notionCount = useMemo(
     () => tasks.filter((task) => task.type.includes("notion")).length,
     [tasks],
@@ -1695,12 +1477,10 @@ function RightRail({ team, tasks }: { team: Worker[]; tasks: TaskRecord[] }) {
         </p>
         <div className="flex justify-between text-[11px] mt-2 opacity-80">
           <span>
-            <Flame className="size-2.5 inline" />{" "}
-            {tasks.filter((task) => task.type.includes("agent")).length} agent
+            <Flame className="size-2.5 inline" /> {tasks.length} actions
           </span>
           <span>
-            <TrendingUp className="size-2.5 inline" />{" "}
-            {tasks.filter((task) => task.type.includes("notion")).length} Notion
+            <TrendingUp className="size-2.5 inline" /> {notionCount} Notion
           </span>
         </div>
       </div>
@@ -1742,7 +1522,7 @@ function RightRail({ team, tasks }: { team: Worker[]; tasks: TaskRecord[] }) {
         </div>
       </div>
 
-      <h3 className="text-sm font-semibold mb-3">Agent activity</h3>
+      <h3 className="text-sm font-semibold mb-3">Recent activity</h3>
       <div className="space-y-2">
         {recentTasks.length > 0 ? (
           recentTasks.map((task) => (
@@ -1799,5 +1579,341 @@ function Activity({
         </p>
       </div>
     </div>
+  );
+}
+
+function buildMockReply(message: string, team: Worker[], tasks: TaskRecord[]): string {
+  const lower = message.toLowerCase();
+  const activeReviews = team.filter((worker) => worker.productivity < 70).length;
+  const openTasks = tasks.filter(
+    (task) => task.status !== "done" && task.status !== "completed",
+  ).length;
+
+  if (lower.includes("review")) {
+    return `Here’s the quick review readout: ${activeReviews || team.length || 0} teammates would benefit from follow-up, and I’d start with the people carrying lower productivity or rising task load. I’d package that as a concise manager brief plus one recommended next step per person.`;
+  }
+
+  if (lower.includes("payroll")) {
+    return "I’d respond with a calm payroll note: confirm the variance, name the pay period affected, and offer a same-day reconciliation path. If you want, I can also frame the response in a more executive or employee-friendly tone.";
+  }
+
+  if (lower.includes("onboarding") || lower.includes("hire")) {
+    return `For onboarding, I’d prioritize three things first: workspace access, role-specific checklist ownership, and a 7-day pulse check. Right now you have ${openTasks} open tracked actions, so I’d keep the first-week plan narrow and accountable.`;
+  }
+
+  if (lower.includes("summary") || lower.includes("update")) {
+    return `Leadership snapshot: ${team.length || 0} people in view, ${openTasks} active tasks, and the strongest opportunity is converting recent workflow activity into clearer follow-ups. I’d keep the update to wins, risks, and next actions.`;
+  }
+
+  return "That’s a strong candidate for the assistant. I’d turn it into a direct operational reply, pull out the decision to make, and end with two concrete next steps so the user knows exactly what happens after they hit send.";
+}
+
+function ChatPanel({ team, tasks }: { team: Worker[]; tasks: TaskRecord[] }) {
+  return (
+    <>
+      <Crumb label="Conversation" parent="Chat" />
+      <h1 className="font-serif-display text-4xl mb-2" style={{ fontWeight: 600 }}>
+        0cta assistant
+      </h1>
+      <p className="text-sm mb-6" style={{ color: "var(--dash-muted)" }}>
+        Frontend-only chatbot simulation focused on the conversation flow, suggested prompts, and
+        composer experience.
+      </p>
+      <div className="-mx-1">
+        <ChatbotRail team={team} tasks={tasks} standalone />
+      </div>
+    </>
+  );
+}
+
+function ChatbotRail({
+  team,
+  tasks,
+  standalone = false,
+}: {
+  team: Worker[];
+  tasks: TaskRecord[];
+  standalone?: boolean;
+}) {
+  const activeUser = team[0];
+  const [draft, setDraft] = useState("");
+  const [messages, setMessages] = useState<ChatMessage[]>(BOT_SEED_MESSAGES);
+  const [isThinking, setIsThinking] = useState(false);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const averageProductivity = useMemo(
+    () =>
+      team.length > 0
+        ? Math.round(team.reduce((sum, worker) => sum + worker.productivity, 0) / team.length)
+        : 0,
+    [team],
+  );
+
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (!node) return;
+    node.scrollTo({ top: node.scrollHeight, behavior: "smooth" });
+  }, [messages, isThinking]);
+
+  const sendMessage = (rawText: string) => {
+    const text = rawText.trim();
+    if (!text || isThinking) return;
+
+    setMessages((current) => [
+      ...current,
+      {
+        id: `user-${Date.now()}`,
+        role: "user",
+        text,
+      },
+    ]);
+    setDraft("");
+    setIsThinking(true);
+
+    window.setTimeout(() => {
+      setMessages((current) => [
+        ...current,
+        {
+          id: `assistant-${Date.now()}`,
+          role: "assistant",
+          text: buildMockReply(text, team, tasks),
+        },
+      ]);
+      setIsThinking(false);
+    }, 700);
+  };
+
+  return (
+    <aside
+      className={`col-span-12 p-4 md:p-6 ${standalone ? "" : "md:col-span-3 border-l"}`}
+      style={standalone ? undefined : { borderColor: "var(--dash-border)" }}
+    >
+      <div className="mb-6 flex items-center gap-3">
+        <div
+          className="size-11 rounded-full"
+          style={{ background: "linear-gradient(135deg, var(--dash-blue-soft), var(--dash-blue))" }}
+        />
+        <div className="flex-1">
+          <p className="text-sm font-semibold">{activeUser?.name ?? "0cta Admin"}</p>
+          <p className="text-xs" style={{ color: "var(--dash-muted)" }}>
+            {activeUser?.role ?? "Admin workspace"}
+          </p>
+        </div>
+        <div
+          className="rounded-full px-2.5 py-1 text-[10px] font-medium"
+          style={{ background: "var(--dash-blue-soft)", color: "var(--dash-blue)" }}
+        >
+          bot preview
+        </div>
+      </div>
+
+      <div
+        className="flex min-h-[760px] flex-col overflow-hidden rounded-[30px]"
+        style={{
+          background:
+            "linear-gradient(180deg, oklch(0.98 0.025 252) 0%, var(--dash-surface) 26%, oklch(0.995 0.01 250) 100%)",
+          border: "1px solid var(--dash-border)",
+          boxShadow: "0 24px 60px -38px rgba(54, 76, 165, 0.45)",
+        }}
+      >
+        <div className="border-b px-4 py-4 md:px-5" style={{ borderColor: "var(--dash-border)" }}>
+          <div className="mb-3 flex items-center gap-3">
+            <div
+              className="grid size-11 place-items-center rounded-2xl text-white"
+              style={{
+                background: "linear-gradient(135deg, var(--dash-blue), oklch(0.55 0.17 288))",
+              }}
+            >
+              <Bot className="size-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold">0cta assistant</p>
+              <p className="text-xs" style={{ color: "var(--dash-muted)" }}>
+                Simulated chat UI with local-only responses
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div
+              className="rounded-2xl p-3"
+              style={{ background: "rgba(255,255,255,0.7)", border: "1px solid var(--dash-border)" }}
+            >
+              <p
+                className="text-[10px] uppercase tracking-[0.18em]"
+                style={{ color: "var(--dash-muted)" }}
+              >
+                Avg output
+              </p>
+              <p className="mt-1 text-xl font-semibold" style={{ color: "var(--dash-blue)" }}>
+                {averageProductivity}%
+              </p>
+            </div>
+            <div
+              className="rounded-2xl p-3"
+              style={{ background: "rgba(255,255,255,0.7)", border: "1px solid var(--dash-border)" }}
+            >
+              <p
+                className="text-[10px] uppercase tracking-[0.18em]"
+                style={{ color: "var(--dash-muted)" }}
+              >
+                Open tasks
+              </p>
+              <p className="mt-1 text-xl font-semibold">{tasks.length}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-4 pt-4 md:px-5">
+          <div className="mb-3 flex items-center justify-between">
+            <p
+              className="text-xs font-semibold uppercase tracking-[0.18em]"
+              style={{ color: "var(--dash-muted)" }}
+            >
+              Suggested questions
+            </p>
+            <span
+              className="rounded-full px-2 py-1 text-[10px]"
+              style={{ background: "var(--dash-blue-soft)", color: "var(--dash-blue)" }}
+            >
+              simulation
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {BOT_SUGGESTIONS.map((suggestion) => (
+              <button
+                key={suggestion}
+                type="button"
+                onClick={() => sendMessage(suggestion)}
+                disabled={isThinking}
+                className="rounded-full px-3 py-2 text-left text-[11px] transition-transform hover:-translate-y-0.5"
+                style={{
+                  background: "rgba(255,255,255,0.75)",
+                  border: "1px solid var(--dash-border)",
+                  color: "var(--dash-ink)",
+                  opacity: isThinking ? 0.7 : 1,
+                }}
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div
+          ref={scrollRef}
+          className="mx-4 my-4 flex-1 space-y-3 overflow-y-auto rounded-[24px] px-1 py-1 md:mx-5"
+        >
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+            >
+              <div
+                className="max-w-[88%] rounded-[24px] px-4 py-3 text-sm leading-6"
+                style={{
+                  background:
+                    message.role === "user"
+                      ? "var(--dash-blue)"
+                      : message.tone === "highlight"
+                        ? "linear-gradient(135deg, rgba(82, 115, 255, 0.12), rgba(150, 176, 255, 0.2))"
+                        : "rgba(255,255,255,0.82)",
+                  color: message.role === "user" ? "white" : "var(--dash-ink)",
+                  border:
+                    message.role === "user" ? "none" : "1px solid rgba(115, 135, 210, 0.14)",
+                  boxShadow:
+                    message.role === "user"
+                      ? "0 16px 34px -24px rgba(54, 76, 165, 0.95)"
+                      : "0 12px 24px -22px rgba(30, 41, 90, 0.35)",
+                }}
+              >
+                {message.text}
+              </div>
+            </div>
+          ))}
+
+          {isThinking ? (
+            <div className="flex justify-start">
+              <div
+                className="rounded-[24px] px-4 py-3"
+                style={{
+                  background: "rgba(255,255,255,0.82)",
+                  border: "1px solid rgba(115, 135, 210, 0.14)",
+                }}
+              >
+                <div className="flex items-center gap-1.5">
+                  {[0, 1, 2].map((dot) => (
+                    <span
+                      key={dot}
+                      className="size-2 rounded-full"
+                      style={{
+                        background: "var(--dash-blue)",
+                        opacity: 0.3 + dot * 0.2,
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="border-t px-4 py-4 md:px-5" style={{ borderColor: "var(--dash-border)" }}>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              sendMessage(draft);
+            }}
+            className="rounded-[26px] p-3"
+            style={{
+              background: "rgba(255,255,255,0.84)",
+              border: "1px solid rgba(115, 135, 210, 0.16)",
+            }}
+          >
+            <Textarea
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (
+                  event.key === "Enter" &&
+                  !event.shiftKey &&
+                  (event.metaKey || event.ctrlKey)
+                ) {
+                  event.preventDefault();
+                  sendMessage(draft);
+                }
+              }}
+              placeholder="Ask 0cta to summarize, draft, prioritize, or turn rough notes into a polished HR response..."
+              className="min-h-[110px] resize-none border-0 bg-transparent px-0 py-0 text-sm shadow-none focus-visible:ring-1 focus-visible:ring-blue-400 placeholder:opacity-60"
+              style={{
+                color: "var(--dash-ink)",
+                placeholderColor: "var(--dash-muted)",
+                caretColor: "var(--dash-blue)",
+                backgroundColor: "transparent",
+                fontFamily: "var(--font-sans)",
+                fontSize: "0.875rem",
+                lineHeight: "1.5",
+              }}
+            />
+
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <p className="text-[11px]" style={{ color: "var(--dash-muted)" }}>
+                Press Enter for a new line. Use Ctrl/Cmd+Enter to send.
+              </p>
+              <button
+                type="submit"
+                disabled={!draft.trim() || isThinking}
+                className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-white transition-opacity"
+                style={{
+                  background: "var(--dash-blue)",
+                  opacity: !draft.trim() || isThinking ? 0.6 : 1,
+                }}
+              >
+                {isThinking ? "Thinking..." : "Send"} <SendHorizontal className="size-4" />
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </aside>
   );
 }
