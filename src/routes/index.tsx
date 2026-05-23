@@ -1,11 +1,35 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import WalletConnect from "../components/wallet-connect";
+import { useEffect, useState } from "react";
+import { appRepository } from "../lib/storage";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/")(({
   component: Landing,
-});
+}));
 
 function Landing() {
+  const [settings, setSettings] = useState<{
+    loginEnabled: boolean;
+    signupEnabled: boolean;
+    waitlistMode: boolean;
+  }>({ loginEnabled: true, signupEnabled: true, waitlistMode: false });
+
+  useEffect(() => {
+    appRepository.getSettings().then((s) => {
+      setSettings({
+        loginEnabled: s.loginEnabled !== false,
+        signupEnabled: s.signupEnabled !== false,
+        waitlistMode: s.waitlistMode === true,
+      });
+    });
+  }, []);
+
+  const loginDest = settings.loginEnabled ? "/login" : "/maintenance?reason=maintenance";
+  const joinDest = settings.waitlistMode
+    ? "/maintenance?reason=waitlist"
+    : settings.signupEnabled
+    ? "/signup"
+    : "/maintenance?reason=maintenance";
+
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
       <header className="py-6">
@@ -25,18 +49,23 @@ function Landing() {
             <Link to="/" className="rounded-full px-3 py-2 hover:bg-white/5">
               Home
             </Link>
-            <Link to="/dashboard" className="rounded-full px-3 py-2 hover:bg-white/5">
-              Dashboard
-            </Link>
             <Link to="/buy" className="rounded-full px-3 py-2 hover:bg-white/5">
-              Early Card
+              Waitlist
             </Link>
           </nav>
-          <div className="flex items-center gap-4">
-            <WalletConnect />
-            <Link to="/dashboard" className="rounded-full border border-white/10 px-4 py-2">
-              Open Workspace
-            </Link>
+          <div className="flex items-center gap-3">
+            {settings.loginEnabled ? (
+              <Link
+                to="/login"
+                className="rounded-full bg-white px-4 py-2 text-sm font-medium text-black hover:bg-white/90 transition-opacity"
+              >
+                Login
+              </Link>
+            ) : (
+              <span className="rounded-full border border-white/20 px-4 py-2 text-sm font-medium text-white/40 cursor-not-allowed">
+                Login
+              </span>
+            )}
           </div>
         </div>
       </header>
@@ -55,11 +84,17 @@ function Landing() {
                 Manage onboarding, team tasks, admin setup, and AI-assisted HR workflows from one workspace built to move fast.
               </p>
               <div className="mt-10 flex flex-wrap items-center gap-4">
-                <Link to="/dashboard" className="rounded-full bg-white px-6 py-3 font-medium text-black">
-                  Open Workspace
+                <Link
+                  to={joinDest}
+                  className="rounded-full bg-white px-6 py-3 font-medium text-black hover:bg-white/90 transition-opacity"
+                >
+                  {settings.waitlistMode ? "Join Waitlist" : settings.signupEnabled ? "Get Started" : "Join Waitlist"}
                 </Link>
-                <Link to="/buy" className="rounded-full border border-white/20 px-6 py-3 text-white/90">
-                  Get Early Card
+                <Link
+                  to={loginDest}
+                  className="rounded-full border border-white/20 px-6 py-3 text-white/90 hover:bg-white/5 transition-colors"
+                >
+                  {settings.loginEnabled ? "Sign In" : "Coming Soon"}
                 </Link>
               </div>
               <div className="mt-10 grid gap-4 text-sm text-white/68 md:grid-cols-3">

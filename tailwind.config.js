@@ -1,0 +1,58 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    './index.html',
+    './src/**/*.{js,jsx,ts,tsx}',
+  ],
+  darkMode: ['class', '.dark'],
+  theme: {
+    extend: {
+      colors: {
+        background: 'oklch(0.94 0.012 80)',
+        foreground: 'oklch(0.18 0.01 60)',
+        card: 'oklch(0.97 0.008 80)',
+        'card-foreground': 'oklch(0.18 0.01 60)',
+        popover: 'oklch(0.97 0.008 80)',
+        'popover-foreground': 'oklch(0.18 0.01 60)',
+        primary: 'oklch(0.18 0.01 60)',
+        'primary-foreground': 'oklch(0.96 0.012 80)',
+        secondary: 'oklch(0.9 0.015 80)',
+        'secondary-foreground': 'oklch(0.18 0.01 60)',
+        muted: 'oklch(0.91 0.012 80)',
+        'muted-foreground': 'oklch(0.45 0.012 70)',
+        accent: 'oklch(0.88 0.02 80)',
+        'accent-foreground': 'oklch(0.18 0.01 60)',
+        destructive: 'oklch(0.55 0.22 27)',
+        'destructive-foreground': 'oklch(0.98 0 0)',
+        border: 'oklch(0.86 0.014 75)',
+        input: 'oklch(0.86 0.014 75)',
+        ring: 'oklch(0.5 0.05 70)',
+        sidebar: 'oklch(0.984 0.003 247.858)',
+        'sidebar-foreground': 'oklch(0.129 0.042 264.695)',
+        'sidebar-primary': 'oklch(0.208 0.042 265.755)',
+        'sidebar-primary-foreground': 'oklch(0.984 0.003 247.858)',
+        'sidebar-accent': 'oklch(0.968 0.007 247.896)',
+        'sidebar-accent-foreground': 'oklch(0.208 0.042 265.755)',
+        'sidebar-border': 'oklch(0.929 0.013 255.508)',
+        'sidebar-ring': 'oklch(0.704 0.04 256.788)',
+      },
+      borderRadius: {
+        sm: 'calc(var(--radius, 0.75rem) - 4px)',
+        md: 'calc(var(--radius, 0.75rem) - 2px)',
+        lg: 'var(--radius, 0.75rem)',
+        xl: 'calc(var(--radius, 0.75rem) + 4px)',
+        '2xl': 'calc(var(--radius, 0.75rem) + 8px)',
+        '3xl': 'calc(var(--radius, 0.75rem) + 12px)',
+        '4xl': 'calc(var(--radius, 0.75rem) + 16px)',
+      },
+      fontFamily: {
+        serif: ['Instrument Serif', 'Cormorant Garamond', 'ui-serif', 'Georgia', 'serif'],
+        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
+      backgroundImage: {
+        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+      },
+    },
+  },
+  plugins: [],
+};

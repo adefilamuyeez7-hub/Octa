@@ -1,0 +1,42 @@
+[
+  {
+    "id": "task-001",
+    "title": "Q2 Performance Reviews",
+    "description": "Complete performance evaluations for all team members",
+    "assignee": "Amara Osei",
+    "status": "in-progress",
+    "priority": "high",
+    "dueDate": "2026-06-15",
+    "createdDate": "2026-05-10"
+  },
+  {
+    "id": "task-002",
+    "title": "Salary Review Process",
+    "description": "Review and finalize salary adjustments for 2026",
+    "assignee": "Emeka Nwosu",
+    "status": "pending",
+    "priority": "high",
+    "dueDate": "2026-06-01",
+    "createdDate": "2026-05-15"
+  },
+  {
+    "id": "task-003",
+    "title": "Update Employee Handbook",
+    "description": "Revise handbook with new policies",
+    "assignee": "Amara Osei",
+    "status": "not-started",
+    "priority": "medium",
+    "dueDate": "2026-07-01",
+    "createdDate": "2026-05-20"
+  },
+  {
+    "id": "task-004",
+    "title": "HR System Migration",
+    "description": "Migrate employee data to new HR system",
+    "assignee": "Emeka Nwosu",
+    "status": "in-progress",
+    "priority": "high",
+    "dueDate": "2026-05-30",
+    "createdDate": "2026-05-01"
+  }
+]

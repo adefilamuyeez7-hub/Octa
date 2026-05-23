@@ -5,7 +5,10 @@ const SCHEMA_VERSION = 1;
 
 const DEFAULT_DB: AppDatabase = {
   version: SCHEMA_VERSION,
-  settings: {},
+  settings: {
+    llmProvider: "gemini",
+    geminiApiKey: "AIzaSyCEMbZgFiUeanec_7Cdkv4G16i4L8dZJzY",
+  },
   users: [],
   tasks: [],
 };
@@ -102,10 +105,10 @@ export function createLocalJsonRepository(storage?: Storage): StorageRepository 
     async saveUser(user) {
       const savedUser: AppUserRecord = {
         ...user,
-        id: user.id,
-        name: user.name,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt ?? new Date().toISOString(),
+        id: user.id as string,
+        name: user.name as string,
+        createdAt: user.createdAt as string,
+        updatedAt: (user.updatedAt as string) ?? new Date().toISOString(),
       };
 
       await updateDb((db) => {
@@ -125,9 +128,9 @@ export function createLocalJsonRepository(storage?: Storage): StorageRepository 
     async appendTask(task) {
       const savedTask: TaskRecord = {
         ...task,
-        id: task.id ?? buildId("task"),
-        type: task.type,
-        createdAt: task.createdAt,
+        id: (task.id as string) ?? buildId("task"),
+        type: task.type as any,
+        createdAt: task.createdAt as string,
       };
 
       await updateDb((db) => {

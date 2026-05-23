@@ -1,0 +1,79 @@
+[
+  {
+    "id": "chat_1779536726744",
+    "timestamp": "2026-05-23T11:45:26.744Z",
+    "input": "list employees",
+    "output": "I understood you're asking: \"list employees\"\n\nI'm still learning! Here's what I can help with:\n\n📋 **Payroll** - Tax calculations, salary reports\n👥 **Employees** - Staff info, onboarding\n✅ **Tasks** - Create and manage work items\n📊 **Performance** - Team metrics and reviews\n\nTry asking about payroll, employees, tasks, or performance!",
+    "category": "general",
+    "pattern": "fallback",
+    "employeeId": null,
+    "employeeName": null,
+    "feedbackScore": null
+  },
+  {
+    "id": "chat_1779536734774",
+    "timestamp": "2026-05-23T11:45:34.774Z",
+    "input": "use",
+    "output": "I understood you're asking: \"use\"\n\nI'm still learning! Here's what I can help with:\n\n📋 **Payroll** - Tax calculations, salary reports\n👥 **Employees** - Staff info, onboarding\n✅ **Tasks** - Create and manage work items\n📊 **Performance** - Team metrics and reviews\n\nTry asking about payroll, employees, tasks, or performance!",
+    "category": "general",
+    "pattern": "fallback",
+    "employeeId": null,
+    "employeeName": null,
+    "feedbackScore": null
+  },
+  {
+    "id": "chat_1779536856763",
+    "timestamp": "2026-05-23T11:47:36.763Z",
+    "input": "list employees",
+    "output": "👥 Current Team (4 members):\n\n1. **Amara Osei**\n   - Role: HR Manager\n   - Email: amara.osei@company.com\n   - Phone: +233 20 123 4567\n   - Salary: GHS 6,500/month\n\n2. **Kwame Asante**\n   - Role: Finance Lead\n   - Email: kwame.asante@company.com\n   - Phone: +233 20 234 5678\n   - Salary: GHS 5,500/month\n\n3. **Zara Mensah**\n   - Role: Operations Manager\n   - Email: zara.mensah@company.com\n   - Phone: +233 20 345 6789\n   - Salary: GHS 4,800/month\n\n4. **Emeka Nwosu**\n   - Role: Developer\n   - Email: emeka.nwosu@company.com\n   - Phone: +233 20 456 7890\n   - Salary: GHS 4,200/month\n\nNeed info about a specific person?",
+    "category": "employees",
+    "pattern": "list employees",
+    "employeeId": null,
+    "employeeName": null,
+    "feedbackScore": null
+  },
+  {
+    "id": "chat_1779536900159",
+    "timestamp": "2026-05-23T11:48:20.159Z",
+    "input": "find payrool",
+    "output": "Bonus Management:\n\n🎯 Current Bonuses:\n- Based on performance metrics\n- Calculated as percentage of gross salary\n- Distributed monthly or quarterly\n\nOur records show bonus allocations are being tracked. Would you like to:\n1. Set up new bonus structure\n2. Calculate bonuses for specific employees\n3. Review bonus history",
+    "category": "payroll",
+    "pattern": "performance pay",
+    "employeeId": null,
+    "employeeName": null,
+    "feedbackScore": null
+  },
+  {
+    "id": "chat_1779540703079",
+    "timestamp": "2026-05-23T12:51:43.079Z",
+    "input": "what tasks are pending?",
+    "output": "✅ Task Management:\n\nI can help you:\n1. **View all tasks** - See complete task list\n2. **Filter by status** - Pending, In Progress, Completed\n3. **Filter by employee** - Assigned tasks\n4. **Set reminders** - For upcoming deadlines\n5. **Update status** - Mark tasks complete\n\nWhat would you like to see?",
+    "category": "tasks",
+    "pattern": "pending tasks",
+    "employeeId": null,
+    "employeeName": null,
+    "feedbackScore": null
+  },
+  {
+    "id": "chat_1779541105705",
+    "timestamp": "2026-05-23T12:58:25.705Z",
+    "input": "helohghjyg",
+    "output": "I understood you're asking: \"helohghjyg\"\n\nI'm still learning! Here's what I can help with:\n\n📋 **Payroll** - Tax calculations, salary reports\n👥 **Employees** - Staff info, onboarding\n✅ **Tasks** - Create and manage work items\n📊 **Performance** - Team metrics and reviews\n\nTry asking about payroll, employees, tasks, or performance!",
+    "category": "general",
+    "pattern": "fallback",
+    "employeeId": null,
+    "employeeName": null,
+    "feedbackScore": null
+  },
+  {
+    "id": "chat_1779541635393",
+    "timestamp": "2026-05-23T13:07:15.393Z",
+    "input": "hey",
+    "output": "👋 Welcome to OCTA HR Assistant!\n\nI'm your AI-powered HR and Payroll assistant. I can help you with:\n\n💼 **HR Management**\n- View and manage employees\n- Onboarding new staff\n- Team structure\n\n💰 **Payroll**\n- Calculate taxes and deductions\n- Generate payroll reports\n- Salary analysis\n\n📋 **Tasks**\n- Create and manage tasks\n- Track deadlines\n- Team assignments\n\n🎓 **Learning**\n- I learn from your interactions\n- Better responses over time\n\nWhat would you like help with?",
+    "category": "general",
+    "pattern": "hey",
+    "employeeId": null,
+    "employeeName": null,
+    "feedbackScore": null
+  }
+]

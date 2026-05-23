@@ -1,0 +1,62 @@
+[
+  {
+    "id": "payroll-001",
+    "employeeId": "emp-001",
+    "employeeName": "Amara Osei",
+    "period": "2026-05",
+    "baseSalary": 75000,
+    "tax": 7500,
+    "deductions": 2000,
+    "bonus": 5000,
+    "netSalary": 70500,
+    "currency": "GHS",
+    "status": "paid",
+    "paidDate": "2026-05-25",
+    "notes": "Monthly payment"
+  },
+  {
+    "id": "payroll-002",
+    "employeeId": "emp-002",
+    "employeeName": "Kwame Asante",
+    "period": "2026-05",
+    "baseSalary": 85000,
+    "tax": 8500,
+    "deductions": 2500,
+    "bonus": 7500,
+    "netSalary": 81500,
+    "currency": "GHS",
+    "status": "paid",
+    "paidDate": "2026-05-25",
+    "notes": "Monthly payment"
+  },
+  {
+    "id": "payroll-003",
+    "employeeId": "emp-003",
+    "employeeName": "Zara Mensah",
+    "period": "2026-05",
+    "baseSalary": 65000,
+    "tax": 6500,
+    "deductions": 1500,
+    "bonus": 4000,
+    "netSalary": 61000,
+    "currency": "GHS",
+    "status": "pending",
+    "paidDate": null,
+    "notes": "Pending review"
+  },
+  {
+    "id": "payroll-004",
+    "employeeId": "emp-004",
+    "employeeName": "Emeka Nwosu",
+    "period": "2026-05",
+    "baseSalary": 60000,
+    "tax": 6000,
+    "deductions": 1000,
+    "bonus": 3000,
+    "netSalary": 56000,
+    "currency": "GHS",
+    "status": "pending",
+    "paidDate": null,
+    "notes": "Pending review"
+  }
+]

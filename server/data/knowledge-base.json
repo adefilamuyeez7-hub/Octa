@@ -1,0 +1,81 @@
+{
+  "categories": {
+    "payroll": {
+      "keywords": ["payroll", "salary", "wage", "tax", "deduction", "bonus", "net", "gross", "fica", "withholding"],
+      "responses": [
+        {
+          "patterns": ["payroll tax", "tax calculation", "how much tax"],
+          "response": "Payroll tax in Ghana is typically calculated at 28% of gross salary. Here's the breakdown:\n\n📊 Tax Calculation:\n• Gross Salary: Employee's base monthly pay\n• PAYE Tax: 28% of gross salary\n• Deductions: Pension (5%), National Insurance (2.75%)\n• Net Salary: Gross - Tax - Deductions\n\nExample:\n- Gross: GHS 5,000\n- Tax (28%): GHS 1,400\n- Deductions: GHS 387.50\n- Net: GHS 3,212.50\n\nWould you like me to calculate payroll for specific employees?"
+        },
+        {
+          "patterns": ["payroll report", "payroll summary", "payroll data"],
+          "response": "I can generate a comprehensive payroll report. Our current payroll data shows:\n\n👥 Employees: 4 staff members\n📅 Period: May 2026\n💰 Total Payroll: GHS 20,000\n🧮 Average Salary: GHS 5,000\n\nKey Metrics:\n• Total Taxes: GHS 5,600 (28%)\n• Total Deductions: GHS 1,550\n• Total Net Payroll: GHS 12,850\n\nWould you like detailed breakdown by employee or specific period?"
+        },
+        {
+          "patterns": ["bonus", "incentive", "performance pay"],
+          "response": "Bonus Management:\n\n🎯 Current Bonuses:\n- Based on performance metrics\n- Calculated as percentage of gross salary\n- Distributed monthly or quarterly\n\nOur records show bonus allocations are being tracked. Would you like to:\n1. Set up new bonus structure\n2. Calculate bonuses for specific employees\n3. Review bonus history"
+        }
+      ]
+    },
+    "employees": {
+      "keywords": ["employee", "staff", "team member", "people", "hr", "human resource", "hire", "onboard"],
+      "responses": [
+        {
+          "patterns": ["list employees", "employee list", "who works here", "team members"],
+          "response": "👥 Current Team (4 members):\n\n1. **Amara Osei**\n   - Role: HR Manager\n   - Email: amara.osei@company.com\n   - Phone: +233 20 123 4567\n   - Salary: GHS 6,500/month\n\n2. **Kwame Asante**\n   - Role: Finance Lead\n   - Email: kwame.asante@company.com\n   - Phone: +233 20 234 5678\n   - Salary: GHS 5,500/month\n\n3. **Zara Mensah**\n   - Role: Operations Manager\n   - Email: zara.mensah@company.com\n   - Phone: +233 20 345 6789\n   - Salary: GHS 4,800/month\n\n4. **Emeka Nwosu**\n   - Role: Developer\n   - Email: emeka.nwosu@company.com\n   - Phone: +233 20 456 7890\n   - Salary: GHS 4,200/month\n\nNeed info about a specific person?"
+        },
+        {
+          "patterns": ["onboard", "new employee", "hire", "add team"],
+          "response": "🎯 Onboarding New Employee:\n\nI can help with:\n1. **Create Employee Record** - Add name, role, salary\n2. **Setup Payroll** - Configure salary structure\n3. **Generate Documents** - Onboarding checklist, contract\n4. **Create Tasks** - Onboarding timeline\n5. **Team Integration** - Assign to team\n\nWhat details do you have for the new employee?"
+        },
+        {
+          "patterns": ["employee salary", "how much does", "earn", "compensation"],
+          "response": "💰 Salary Information:\n\nI have salary data for all team members. Here are the current rates:\n\n- Amara Osei (HR Manager): GHS 6,500/month\n- Kwame Asante (Finance Lead): GHS 5,500/month\n- Zara Mensah (Operations Manager): GHS 4,800/month\n- Emeka Nwosu (Developer): GHS 4,200/month\n\nWould you like to update salaries or perform salary analysis?"
+        }
+      ]
+    },
+    "tasks": {
+      "keywords": ["task", "todo", "assignment", "deadline", "project", "work", "complete"],
+      "responses": [
+        {
+          "patterns": ["create task", "new task", "add task", "assign task"],
+          "response": "📝 Task Creation:\n\nI can help create tasks for:\n• Employee onboarding\n• Payroll processing\n• HR reviews\n• Team projects\n• Deadlines\n\nWhat task would you like to create? Provide:\n1. Task title\n2. Description\n3. Assignee (optional)\n4. Deadline (optional)\n5. Priority (Low/Medium/High)"
+        },
+        {
+          "patterns": ["my tasks", "pending tasks", "task list", "what's due"],
+          "response": "✅ Task Management:\n\nI can help you:\n1. **View all tasks** - See complete task list\n2. **Filter by status** - Pending, In Progress, Completed\n3. **Filter by employee** - Assigned tasks\n4. **Set reminders** - For upcoming deadlines\n5. **Update status** - Mark tasks complete\n\nWhat would you like to see?"
+        }
+      ]
+    },
+    "performance": {
+      "keywords": ["performance", "review", "rating", "score", "metrics", "contribution", "delivery", "efficiency", "team analytics"],
+      "responses": [
+        {
+          "patterns": ["performance", "team performance", "performance review", "performance metrics"],
+          "response": "📊 **Team Performance Dashboard:**\n\nI track comprehensive metrics for your team:\n\n**Key Metrics:**\n- Contribution Scores (0-100)\n- Task Completion Rates\n- On-Time Delivery Performance\n- Active Hours Tracking\n- Task Quality Ratings (1-5 stars)\n\n**For Individual Members:**\n- Performance Grade (A-D)\n- Recent Tasks with Ratings\n- Task Proof Links\n- Efficiency Scores\n- Completion History\n\n**Recent Team Stats:**\n- Total Tasks Completed: 12\n- Average Contribution Score: 86/100\n- On-Time Delivery: 92%\n- Top Performer: Emeka Nwosu (95/100)\n\nWould you like to see a specific team member's performance review?"
+        },
+        {
+          "patterns": ["task rating", "task quality", "delivery proof"],
+          "response": "✅ **Task Delivery & Quality:**\n\nEach completed task includes:\n\n⭐ **Quality Rating System:**\n- 5 Stars: Excellent, exceeds expectations\n- 4 Stars: Good, meets all requirements\n- 3 Stars: Satisfactory, meets basic requirements\n- 2 Stars: Needs improvement\n- 1 Star: Incomplete or poor quality\n\n📎 **Proof of Completion:**\n- Link to deliverables (docs, code, reports)\n- Timestamp of completion\n- Days completed early/late\n- Priority level\n\n📈 **Analytics:**\n- Average time to completion\n- Completion consistency\n- Quality trends\n- Deadline adherence rate\n\nClick on any team member in the People section to see their recent tasks with ratings and proof links."
+        },
+        {
+          "patterns": ["who is top performer", "best performing", "highest score"],
+          "response": "🏆 **Top Performers:**\n\nBased on current performance metrics:\n\n1. **Emeka Nwosu** - Score: 95/100\n   - Grade: A\n   - Tasks Completed: 5/5 (100%)\n   - On-Time Delivery: 100%\n   - Recent Tasks: All 5-star rated\n\n2. **Kwame Asante** - Score: 90/100\n   - Grade: A\n   - Tasks Completed: 4/4 (100%)\n   - On-Time Delivery: 100%\n   - Recent Tasks: 5-star rated\n\n3. **Amara Osei** - Score: 85/100\n   - Grade: B\n   - Tasks Completed: 3/5 (60%)\n   - On-Time Delivery: 100%\n   - Recent Tasks: Mixed 4-5 stars\n\nWould you like to view detailed performance for any team member?"
+        }
+      ]
+    },
+    "general": {
+      "keywords": ["hello", "hi", "help", "what can you do", "how", "when"],
+      "responses": [
+        {
+          "patterns": ["hello", "hi", "hey", "greetings"],
+          "response": "👋 Welcome to OCTA HR Assistant!\n\nI'm your AI-powered HR and Payroll assistant. I can help you with:\n\n💼 **HR Management**\n- View and manage employees\n- Onboarding new staff\n- Team structure\n\n💰 **Payroll**\n- Calculate taxes and deductions\n- Generate payroll reports\n- Salary analysis\n\n📋 **Tasks**\n- Create and manage tasks\n- Track deadlines\n- Team assignments\n\n🎓 **Learning**\n- I learn from your interactions\n- Better responses over time\n\nWhat would you like help with?"
+        },
+        {
+          "patterns": ["what can you do", "help me", "capabilities"],
+          "response": "🤖 My Capabilities:\n\n✨ **Core Features:**\n1. **Payroll Management** - Calculate taxes, generate reports\n2. **Employee Database** - Manage team info and data\n3. **Task Management** - Create, assign, track tasks\n4. **HR Insights** - Team analytics and reporting\n5. **Learning** - I improve based on your feedback\n\n🔗 **Integrations:**\n- Notion (planned) - For wiki and docs\n- Spreadsheets - Data export\n- Email - Notifications\n\nWhat would you like to do first?"
+        }
+      ]
+    }
+  }
+}

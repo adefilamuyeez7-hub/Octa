@@ -1,8 +1,9 @@
-import { createLocalJsonRepository } from "./local-json-repository";
+import { createSupabaseRepository } from "./supabase-repository";
 
-export const appRepository = createLocalJsonRepository(typeof window === "undefined" ? undefined : window.localStorage);
+// Now exporting the live Supabase database repository
+export const appRepository = createSupabaseRepository();
 
-export { createLocalJsonRepository };
+export { createSupabaseRepository };
 export type {
   AppDatabase,
   AppSettings,
