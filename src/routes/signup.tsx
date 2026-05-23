@@ -20,6 +20,8 @@ function Signup() {
   const [username, setUsername] = useState("");
   const [gender, setGender] = useState("");
   const [email, setEmail] = useState("");
+  const [organization, setOrganization] = useState("");
+  const [teamType, setTeamType] = useState("");
   const [password, setPassword] = useState("");
   
   // Real-time username validation
@@ -103,7 +105,7 @@ function Signup() {
       return;
     }
 
-    if (!firstName || !lastName || !gender) {
+    if (!firstName || !lastName || !gender || !organization || !teamType) {
       setError("Please fill out all required fields");
       setLoading(false);
       return;
@@ -117,7 +119,9 @@ function Signup() {
           first_name: firstName,
           last_name: lastName,
           username: username.toLowerCase(),
-          gender: gender
+          gender: gender,
+          organization: organization,
+          team_type: teamType
         }
       }
     });
@@ -258,7 +262,7 @@ function Signup() {
   const strength = calculateStrength(password);
 
   const emailCheck = validateEmail(email);
-  const isFormValid = emailCheck.severity !== "error" && password.length >= 6 && usernameStatus === "available" && firstName && lastName && gender;
+  const isFormValid = emailCheck.severity !== "error" && password.length >= 6 && usernameStatus === "available" && firstName && lastName && gender && organization && teamType;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-black px-4 text-white py-12">
@@ -335,6 +339,32 @@ function Signup() {
                 <option value="Female" className="bg-black">Female</option>
                 <option value="Other" className="bg-black">Other</option>
                 <option value="Prefer not to say" className="bg-black">Prefer not to say</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm text-white/80" htmlFor="signup-org">Organization</label>
+              <input
+                id="signup-org" type="text" required
+                className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm outline-none focus:border-white/20"
+                value={organization} onChange={(e) => setOrganization(e.target.value)} placeholder="Your company name"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm text-white/80" htmlFor="signup-team-type">Team Type</label>
+              <select
+                id="signup-team-type" required
+                className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm outline-none focus:border-white/20 appearance-none text-white"
+                value={teamType} onChange={(e) => setTeamType(e.target.value)}
+              >
+                <option value="" disabled className="bg-black">Select team type</option>
+                <option value="HR" className="bg-black">HR</option>
+                <option value="Finance" className="bg-black">Finance</option>
+                <option value="Operations" className="bg-black">Operations</option>
+                <option value="Management" className="bg-black">Management</option>
+                <option value="Compliance" className="bg-black">Compliance</option>
+                <option value="Other" className="bg-black">Other</option>
               </select>
             </div>
 
