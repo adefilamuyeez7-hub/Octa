@@ -1,6 +1,6 @@
 type AgentRequest = {
   message?: string;
-  provider?: "xai" | "gemini";
+  provider?: "claude" | "xai" | "gemini";
   history?: Array<{ from?: string; text?: string }>;
 };
 
@@ -8,6 +8,11 @@ type AgentResult = {
   reply: string;
   meta: string;
   live: boolean;
+};
+
+type ClaudeMessage = {
+  role: "user" | "assistant";
+  content: string | Array<{ type: "text" | "tool_result"; text?: string; tool_use_id?: string; content?: string }>;
 };
 
 type OpenResponsesMessageItem = {
@@ -284,6 +289,66 @@ async function callGeminiApi(
   };
 }
 
+async function callClaudeApi(
+  input: AgentRequest,
+  apiKey: string,
+): Promise<AgentResult> {
+  const history = (input.history ?? []).filter(
+    (entry): entry is { from: "you" | "agent"; text: string } =>
+      (entry.from === "you" || entry.from === "agent") &&
+      typeof entry.text === "string" &&
+      entry.text.trim().length > 0,
+  );
+
+  const messages: ClaudeMessage[] = history.map((entry) => ({
+    role: entry.from === "agent" ? "assistant" : "user",
+    content: entry.text,
+  }));
+
+  if (input.message) {
+    messages.push({
+      role: "user",
+      content: input.message,
+    });
+  }
+
+  const payload = {
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 1024,
+    system: "You are 0cta, an HR operations copilot. Give direct, useful replies and suggest concrete next steps when helpful.",
+    messages,
+  };
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": apiKey,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const raw = await response.text();
+  if (!response.ok) {
+    throw new Error(`Claude API error ${response.status}: ${raw}`);
+  }
+
+  let parsed: unknown = raw;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    // Ignore parse error
+  }
+
+  const reply = extractReply(parsed) ?? (typeof raw === "string" ? raw.trim() : "Claude returned an empty reply.");
+  
+  return {
+    reply,
+    meta: `Live via Anthropic Claude (Sonnet 4) - responded just now`,
+    live: true,
+  };
+}
+
 async function callXaiApi(
   input: AgentRequest,
   apiUrl: string,
@@ -342,6 +407,7 @@ export async function runAgent(input: AgentRequest): Promise<AgentResult> {
     throw new Error("Missing message");
   }
 
+  const claudeApiKey = process.env.ANTHROPIC_API_KEY || "";
   const grokApiKey = process.env.XAI_API_KEY || process.env.GROK_API_KEY || "";
   const grokApiUrl =
     process.env.XAI_API_URL || process.env.GROK_API_URL || "https://api.x.ai/v1/responses";
@@ -350,34 +416,40 @@ export async function runAgent(input: AgentRequest): Promise<AgentResult> {
   const webhookUrl = process.env.MOLTBOT_WEBHOOK_URL || "";
   const apiKey = process.env.MOLTBOT_API_KEY || "";
 
-  if (!grokApiKey && !geminiApiKey && !webhookUrl) {
-    return buildLocalReply(message);
+  // Try Claude first (default), then fall through to other providers
+  if (claudeApiKey && !input.provider) {
+    try {
+      return await callClaudeApi(input, claudeApiKey);
+    } catch (error) {
+      console.error("claude api error", error);
+      return {
+        ...buildLocalReply(message),
+        meta: "Claude API failed - local fallback used just now",
+      };
+    }
   }
 
-  if (input.provider === "gemini") {
-    if (geminiApiKey) {
-      try {
-        return await callGeminiApi(input, geminiApiKey);
-      } catch (error) {
-        console.error("gemini api error", error);
-        return {
-          ...buildLocalReply(message),
-          meta: "Gemini API failed - local fallback used just now",
-        };
-      }
+  if (input.provider === "gemini" && geminiApiKey) {
+    try {
+      return await callGeminiApi(input, geminiApiKey);
+    } catch (error) {
+      console.error("gemini api error", error);
+      return {
+        ...buildLocalReply(message),
+        meta: "Gemini API failed - local fallback used just now",
+      };
     }
-    // Fall back if key missing
-  } else {
-    if (grokApiKey) {
-      try {
-        return await callXaiApi(input, grokApiUrl, grokApiKey, grokModel);
-      } catch (error) {
-        console.error("grok api error", error);
-        return {
-          ...buildLocalReply(message),
-          meta: "xAI API failed - local fallback used just now",
-        };
-      }
+  }
+
+  if (input.provider === "xai" || (input.provider !== "gemini" && grokApiKey)) {
+    try {
+      return await callXaiApi(input, grokApiUrl, grokApiKey, grokModel);
+    } catch (error) {
+      console.error("grok api error", error);
+      return {
+        ...buildLocalReply(message),
+        meta: "xAI API failed - local fallback used just now",
+      };
     }
   }
 

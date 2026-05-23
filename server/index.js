@@ -9,6 +9,7 @@ import grokRouter from './routes/grok.js';
 import notionRouter from './routes/notion.js';
 import performanceRouter from './routes/performance.js';
 import chatRouter from './routes/chat.js';
+import agentRouter from './routes/agent.js';
 
 dotenv.config();
 
@@ -20,14 +21,15 @@ app.use(cors());
 app.use(express.json());
 
 // Routes
-app.use('/employees', employeesRouter);
-app.use('/payroll', payrollRouter);
-app.use('/teams', teamsRouter);
-app.use('/tasks', tasksRouter);
-app.use('/grok', grokRouter);
-app.use('/notion', notionRouter);
-app.use('/performance', performanceRouter);
-app.use('/chat', chatRouter);
+app.use('/api/employees', employeesRouter);
+app.use('/api/payroll', payrollRouter);
+app.use('/api/teams', teamsRouter);
+app.use('/api/tasks', tasksRouter);
+app.use('/api/grok', grokRouter);
+app.use('/api/notion', notionRouter);
+app.use('/api/performance', performanceRouter);
+app.use('/api/chat', chatRouter);
+app.use('/api/agent', agentRouter);
 
 // Health check
 app.get('/health', (req, res) => {
