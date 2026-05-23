@@ -18,6 +18,9 @@ type ClaudeMessage = {
   content: string;
 };
 
+const CLAUDE_MODEL = "claude-sonnet-4-6";
+const ANTHROPIC_VERSION = "2023-06-01";
+
 type OpenResponsesMessageItem = {
   type: "message";
   role: "user" | "assistant";
@@ -325,7 +328,7 @@ async function callClaudeApi(
   }
 
   const payload = {
-    model: "claude-sonnet-4-20250514",
+    model: CLAUDE_MODEL,
     max_tokens: 1024,
     system: "You are 0cta, an HR operations copilot. Give direct, useful replies and suggest concrete next steps when helpful.",
     messages,
@@ -336,6 +339,7 @@ async function callClaudeApi(
     headers: {
       "content-type": "application/json",
       "x-api-key": apiKey,
+      "anthropic-version": ANTHROPIC_VERSION,
     },
     body: JSON.stringify(payload),
   });
@@ -356,7 +360,7 @@ async function callClaudeApi(
   
   return {
     reply,
-    meta: `Live via Anthropic Claude (Sonnet 4) - responded just now`,
+    meta: `Live via Anthropic Claude (${CLAUDE_MODEL}) - responded just now`,
     live: true,
   };
 }

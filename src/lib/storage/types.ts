@@ -14,7 +14,8 @@ export interface AppSettings extends JsonObject {
   burnPolicy?: "per_request" | "per_action" | "monthly_cap";
   walletAddress?: string;
   approvalRequired?: boolean;
-  llmProvider?: "gemini" | "groq" | "local";
+  llmProvider?: "claude" | "gemini" | "groq" | "local";
+  claudeApiKey?: string;
   geminiApiKey?: string;
   groqApiKey?: string;
   adminWallets?: string[];

@@ -8,6 +8,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Import agent handler (dynamically load the TypeScript-compiled version)
 // For now, we'll implement a wrapper that uses the Claude API directly
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
+const CLAUDE_MODEL = 'claude-sonnet-4-6';
+const ANTHROPIC_VERSION = '2023-06-01';
 
 async function callClaudeApi(message, history = []) {
   if (!ANTHROPIC_API_KEY) {
@@ -27,7 +29,7 @@ async function callClaudeApi(message, history = []) {
   });
 
   const payload = {
-    model: 'claude-sonnet-4-20250514',
+    model: CLAUDE_MODEL,
     max_tokens: 1024,
     system: 'You are 0cta, an HR operations copilot. Give direct, useful replies and suggest concrete next steps when helpful.',
     messages,
@@ -38,6 +40,7 @@ async function callClaudeApi(message, history = []) {
     headers: {
       'content-type': 'application/json',
       'x-api-key': ANTHROPIC_API_KEY,
+      'anthropic-version': ANTHROPIC_VERSION,
     },
     body: JSON.stringify(payload),
   });
@@ -68,7 +71,7 @@ async function callClaudeApi(message, history = []) {
 
   return {
     reply,
-    meta: 'Live via Anthropic Claude (Sonnet 4) - responded just now',
+    meta: `Live via Anthropic Claude (${CLAUDE_MODEL}) - responded just now`,
     live: true,
   };
 }

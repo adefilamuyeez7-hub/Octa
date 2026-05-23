@@ -870,13 +870,52 @@ const AgentPanel = memo(function AgentPanelImpl({
       try {
         const settings = await appRepository.getSettings();
         const provider = settings.llmProvider || "local";
+        const claudeKey = settings.claudeApiKey || "";
         const geminiKey = settings.geminiApiKey || "";
         const groqKey = settings.groqApiKey || "";
 
         let reply = "";
         let meta = "";
 
-        if (provider === "gemini" && geminiKey) {
+        if (provider === "claude" && claudeKey) {
+          const messages = nextMessages
+            .filter((m) => m.text?.trim())
+            .map((m) => ({
+              role: m.from === "agent" ? "assistant" : "user",
+              content: m.text,
+            }));
+
+          const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "x-api-key": claudeKey,
+              "anthropic-version": "2023-06-01",
+            },
+            body: JSON.stringify({
+              model: "claude-sonnet-4-6",
+              max_tokens: 1024,
+              system:
+                "You are 0cta, an HR operations copilot. Give direct, useful replies and suggest concrete next steps when helpful.",
+              messages,
+            }),
+          });
+
+          if (claudeRes.ok) {
+            const claudeData = (await claudeRes.json()) as {
+              content?: Array<{ type?: string; text?: string }>;
+            };
+            reply =
+              claudeData.content
+                ?.filter((part) => part.type === "text" && part.text)
+                .map((part) => part.text)
+                .join("\n")
+                .trim() ?? "";
+            meta = "Live via Anthropic Claude Sonnet - just now";
+          } else {
+            console.error("Claude error", await claudeRes.text());
+          }
+        } else if (provider === "gemini" && geminiKey) {
           const contents = nextMessages
             .filter((m) => m.text?.trim())
             .map((m) => ({
@@ -968,7 +1007,7 @@ const AgentPanel = memo(function AgentPanelImpl({
           type: "agent_response",
           title: "Agent response",
           text: reply,
-          via: meta.includes("Gemini") ? "agent-live" : "agent-local",
+          via: meta.includes("Live via") ? "agent-live" : "agent-local",
           createdAt: new Date().toISOString(),
         });
         await onDataChange();
@@ -1004,10 +1043,16 @@ const AgentPanel = memo(function AgentPanelImpl({
         {notionStatus.connected ? "connected" : "not connected"}.
       </p>
 
-      <AgentComposer isRunning={isRunning} onSubmit={runAgent} />
+      <div className="flex min-h-[560px] flex-col">
+        <div className="flex-1">
+          <h3 className="text-sm font-semibold mb-3">Agent feedback</h3>
+          <AgentMessages messages={messages} />
+        </div>
 
-      <h3 className="text-sm font-semibold mb-3">Agent feedback</h3>
-      <AgentMessages messages={messages} />
+        <div className="mt-10">
+          <AgentComposer isRunning={isRunning} onSubmit={runAgent} />
+        </div>
+      </div>
     </>
   );
 });
@@ -1024,7 +1069,8 @@ function AdminPanel({
   onDataChange: () => Promise<void>;
 }) {
   const [burnPolicy, setBurnPolicy] = useState<"per_request" | "per_action" | "monthly_cap">("per_request");
-  const [llmProvider, setLlmProvider] = useState<"gemini" | "local">("local");
+  const [llmProvider, setLlmProvider] = useState<"claude" | "gemini" | "local">("local");
+  const [claudeApiKey, setClaudeApiKey] = useState("");
   const [geminiApiKey, setGeminiApiKey] = useState("");
   const [walletAddress, setWalletAddress] = useState("");
   const [approvalRequired, setApprovalRequired] = useState(true);
@@ -1036,7 +1082,13 @@ function AdminPanel({
       const settings = await appRepository.getSettings();
       if (!active) return;
       if (typeof settings.burnPolicy === "string") setBurnPolicy(settings.burnPolicy);
-      if (settings.llmProvider === "gemini" || settings.llmProvider === "local") setLlmProvider(settings.llmProvider);
+      if (
+        settings.llmProvider === "claude" ||
+        settings.llmProvider === "gemini" ||
+        settings.llmProvider === "local"
+      )
+        setLlmProvider(settings.llmProvider);
+      if (typeof settings.claudeApiKey === "string") setClaudeApiKey(settings.claudeApiKey);
       if (typeof settings.geminiApiKey === "string") setGeminiApiKey(settings.geminiApiKey);
       if (typeof settings.walletAddress === "string") setWalletAddress(settings.walletAddress);
       if (typeof settings.approvalRequired === "boolean")
@@ -1127,7 +1179,14 @@ function AdminPanel({
 
   const savePolicySettings = async () => {
     try {
-      await appRepository.setSettings({ burnPolicy, walletAddress, approvalRequired, llmProvider, geminiApiKey });
+      await appRepository.setSettings({
+        burnPolicy,
+        walletAddress,
+        approvalRequired,
+        llmProvider,
+        claudeApiKey,
+        geminiApiKey,
+      });
       window.alert("Policy settings saved.");
     } catch (error) {
       console.error("policy save error", error);
@@ -1228,7 +1287,7 @@ function AdminPanel({
               </label>
               <select
                 value={llmProvider}
-                onChange={(e) => setLlmProvider(e.target.value as "gemini" | "local")}
+                onChange={(e) => setLlmProvider(e.target.value as "claude" | "gemini" | "local")}
                 className="w-full p-2 rounded text-sm mb-3"
                 style={{
                   background: "var(--dash-blue-soft)",
@@ -1237,8 +1296,31 @@ function AdminPanel({
                 }}
               >
                 <option value="local">Local (no API key needed)</option>
+                <option value="claude">Anthropic Claude Sonnet</option>
                 <option value="gemini">Google Gemini</option>
               </select>
+              {llmProvider === "claude" && (
+                <div className="mb-4">
+                  <label
+                    className="block text-xs font-medium mb-2"
+                    style={{ color: "var(--dash-muted)" }}
+                  >
+                    Claude API Key
+                  </label>
+                  <input
+                    type="password"
+                    value={claudeApiKey}
+                    onChange={(e) => setClaudeApiKey(e.target.value)}
+                    placeholder="sk-ant-..."
+                    className="w-full p-2 rounded text-sm font-mono"
+                    style={{
+                      background: "var(--dash-blue-soft)",
+                      color: "var(--dash-ink)",
+                      border: "1px solid var(--dash-border)",
+                    }}
+                  />
+                </div>
+              )}
               {llmProvider === "gemini" && (
                 <div className="mb-4">
                   <label

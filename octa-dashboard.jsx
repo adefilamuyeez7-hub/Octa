@@ -226,7 +226,7 @@ async function runAgent({ userMsg, displayHistory, settings, notionData, onTaskC
   const toolLog = [];
 
   for (let i = 0; i < 4; i++) {
-    const body = { model: "claude-sonnet-4-20250514", max_tokens: 1000, system: SYSTEM, messages: currentMsgs };
+    const body = { model: "claude-sonnet-4-6", max_tokens: 1000, system: SYSTEM, messages: currentMsgs };
     if (tools.length) body.tools = tools;
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),

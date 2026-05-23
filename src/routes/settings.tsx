@@ -103,7 +103,8 @@ function SettingsPage() {
   const [siteName, setSiteName] = useState("0cta");
 
   // Chatbot
-  const [llmProvider, setLlmProvider] = useState<"local" | "gemini" | "groq">("local");
+  const [llmProvider, setLlmProvider] = useState<"local" | "claude" | "gemini" | "groq">("local");
+  const [claudeApiKey, setClaudeApiKey] = useState("");
   const [geminiApiKey, setGeminiApiKey] = useState("");
   const [groqApiKey, setGroqApiKey] = useState("");
 
@@ -158,6 +159,7 @@ function SettingsPage() {
 
       // Chatbot
       setLlmProvider(s.llmProvider ?? "local");
+      setClaudeApiKey(s.claudeApiKey ?? "");
       setGeminiApiKey(s.geminiApiKey ?? "");
       setGroqApiKey(s.groqApiKey ?? "");
 
@@ -232,6 +234,7 @@ function SettingsPage() {
       signupEnabled,
       waitlistMode,
       llmProvider,
+      claudeApiKey,
       geminiApiKey,
       groqApiKey,
       adminWallets,
@@ -472,16 +475,29 @@ function SettingsPage() {
                       <select
                         id="llm-provider"
                         value={llmProvider}
-                        onChange={(e) => setLlmProvider(e.target.value as "local" | "gemini" | "groq")}
+                        onChange={(e) => setLlmProvider(e.target.value as "local" | "claude" | "gemini" | "groq")}
                         className={selectClasses}
                         style={{ borderColor: "var(--dash-border)", background: "transparent", color: "var(--dash-ink)" }}
                       >
                         <option value="local">Local Mock Mode (Free — no API key needed)</option>
+                        <option value="claude">Anthropic Claude Sonnet</option>
                         <option value="gemini">Google Gemini</option>
                         <option value="groq">Groq (Llama / Mixtral — Free tier available)</option>
                       </select>
                       <div className="text-[11px] mt-1.5 opacity-70" style={{ color: "var(--dash-muted)" }}>Select which AI model powers the 0cta assistant.</div>
                     </label>
+
+                    {llmProvider === "claude" && (
+                      <TextInput
+                        id="claude-key"
+                        label="Claude API Key"
+                        type="password"
+                        value={claudeApiKey}
+                        onChange={setClaudeApiKey}
+                        placeholder="sk-ant-..."
+                        hint="Uses the Anthropic Messages API with Claude Sonnet."
+                      />
+                    )}
 
                     {llmProvider === "gemini" && (
                       <TextInput
