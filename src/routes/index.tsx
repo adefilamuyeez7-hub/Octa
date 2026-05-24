@@ -88,7 +88,7 @@ function Landing() {
                   to={joinDest}
                   className="rounded-full bg-white px-6 py-3 font-medium text-black hover:bg-white/90 transition-opacity"
                 >
-                  {settings.waitlistMode ? "Join Waitlist" : settings.signupEnabled ? "Get Started" : "Join Waitlist"}
+                  {settings.waitlistMode ? "Join Waitlist" : "Join Waitlist"}
                 </Link>
                 <Link
                   to={loginDest}

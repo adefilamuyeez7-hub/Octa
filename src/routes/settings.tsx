@@ -103,9 +103,10 @@ function SettingsPage() {
   const [siteName, setSiteName] = useState("0cta");
 
   // Chatbot
-  const [llmProvider, setLlmProvider] = useState<"local" | "gemini" | "groq">("local");
+  const [llmProvider, setLlmProvider] = useState<"local" | "gemini" | "groq" | "claude">("local");
   const [geminiApiKey, setGeminiApiKey] = useState("");
   const [groqApiKey, setGroqApiKey] = useState("");
+  const [claudeApiKey, setClaudeApiKey] = useState("");
 
   // Admin wallets
   const [adminWallet1, setAdminWallet1] = useState("");
@@ -118,6 +119,12 @@ function SettingsPage() {
   // Token policy
   const [burnPolicy, setBurnPolicy] = useState<"per_request" | "per_action" | "monthly_cap">("per_request");
   const [walletAddress, setWalletAddress] = useState("");
+
+  // NFT Controls
+  const [mintPaused, setMintPaused] = useState(false);
+  const [totalMint, setTotalMint] = useState(800);
+  const [minted, setMinted] = useState(0);
+  const [tweetUrl, setTweetUrl] = useState("https://x.com/intent/tweet?text=One%20click%20HR%20Manager%20is%20coming%20to%20Base.");
 
   useEffect(() => {
     (async () => {
@@ -160,6 +167,7 @@ function SettingsPage() {
       setLlmProvider(s.llmProvider ?? "local");
       setGeminiApiKey(s.geminiApiKey ?? "");
       setGroqApiKey(s.groqApiKey ?? "");
+      setClaudeApiKey(s.claudeApiKey ?? "");
 
       // Admin wallets
       const wallets = s.adminWallets ?? [];
@@ -170,9 +178,13 @@ function SettingsPage() {
       setChatEnabled(s.userFeatures?.chatEnabled ?? true);
       setTasksEnabled(s.userFeatures?.tasksEnabled ?? true);
 
-      // Token
+      // Token & NFT
       setBurnPolicy(s.burnPolicy ?? "per_request");
       setWalletAddress(s.walletAddress ?? "");
+      setMintPaused(s.nftConfig?.mintPaused ?? false);
+      setTotalMint(s.nftConfig?.totalMint ?? 800);
+      setMinted(s.nftConfig?.minted ?? 0);
+      setTweetUrl(s.nftConfig?.tweetUrl ?? "https://x.com/intent/tweet?text=One%20click%20HR%20Manager%20is%20coming%20to%20Base.");
 
       setLoading(false);
     })();
@@ -234,12 +246,14 @@ function SettingsPage() {
       llmProvider,
       geminiApiKey,
       groqApiKey,
+      claudeApiKey,
       adminWallets,
       userFeatures: { chatEnabled, tasksEnabled },
       burnPolicy,
       walletAddress,
       tokenEnabled: true,
       walletEnabled: true,
+      nftConfig: { mintPaused, totalMint, minted, tweetUrl },
     });
     setSaving(false);
     setSaveMsg("Settings saved ✓");
@@ -479,6 +493,7 @@ function SettingsPage() {
                         <option value="local">Local Mock Mode (Free — no API key needed)</option>
                         <option value="gemini">Google Gemini</option>
                         <option value="groq">Groq (Llama / Mixtral — Free tier available)</option>
+                        <option value="claude">Anthropic Claude</option>
                       </select>
                       <div className="text-[11px] mt-1.5 opacity-70" style={{ color: "var(--dash-muted)" }}>Select which AI model powers the 0cta assistant.</div>
                     </label>
@@ -505,6 +520,63 @@ function SettingsPage() {
                         hint="Get a free key at console.groq.com"
                       />
                     )}
+
+                    {llmProvider === "claude" && (
+                      <TextInput
+                        id="claude-key"
+                        label="Claude API Key"
+                        type="password"
+                        value={claudeApiKey}
+                        onChange={setClaudeApiKey}
+                        placeholder="sk-ant-..."
+                        hint="Get a key at console.anthropic.com"
+                      />
+                    )}
+                  </div>
+                </section>
+
+                {/* ── NFT Smart Contract Controls ── */}
+                <section>
+                  <SectionHeading>NFT Smart Contract Controls</SectionHeading>
+                  <p className="text-sm mb-4 leading-relaxed opacity-80" style={{ color: "var(--dash-muted)" }}>
+                    Manage the minting state of your NFT collection.
+                  </p>
+                  
+                  <div className="flex flex-col gap-6">
+                    {/* Stats Display */}
+                    <div className="flex items-center justify-between px-8 py-6 rounded-xl border" style={{ borderColor: "var(--dash-border)", background: "rgba(0,0,0,0.2)" }}>
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="text-2xl font-bold text-white">{minted}</span>
+                        <span className="text-[10px] tracking-widest text-white/50 uppercase">Minted</span>
+                      </div>
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="text-2xl font-bold text-white">{totalMint}</span>
+                        <span className="text-[10px] tracking-widest text-white/50 uppercase">Total Mint</span>
+                      </div>
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="text-2xl font-bold text-white">{totalMint - minted}</span>
+                        <span className="text-[10px] tracking-widest text-white/50 uppercase">Remaining</span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-5">
+                      <Toggle
+                        id="toggle-mint-pause"
+                        checked={mintPaused}
+                        onChange={setMintPaused}
+                        label="Pause Minting"
+                        description="When enabled, users will not be able to mint new NFTs from the smart contract."
+                      />
+
+                      <TextInput
+                        id="launch-tweet-url"
+                        label="Launch Tweet URL"
+                        value={tweetUrl}
+                        onChange={setTweetUrl}
+                        placeholder="https://x.com/intent/tweet?..."
+                        hint="Set the URL users will open to complete the 'Like and retweet' task on the Early Card page."
+                      />
+                    </div>
                   </div>
                 </section>
 

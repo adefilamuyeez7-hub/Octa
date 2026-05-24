@@ -14,9 +14,10 @@ export interface AppSettings extends JsonObject {
   burnPolicy?: "per_request" | "per_action" | "monthly_cap";
   walletAddress?: string;
   approvalRequired?: boolean;
-  llmProvider?: "gemini" | "groq" | "local";
+  llmProvider?: "gemini" | "groq" | "local" | "claude";
   geminiApiKey?: string;
   groqApiKey?: string;
+  claudeApiKey?: string;
   adminWallets?: string[];
   userFeatures?: {
     chatEnabled: boolean;
@@ -26,6 +27,12 @@ export interface AppSettings extends JsonObject {
   loginEnabled?: boolean;
   signupEnabled?: boolean;
   waitlistMode?: boolean;
+  nftConfig?: {
+    mintPaused: boolean;
+    totalMint: number;
+    minted: number;
+    tweetUrl?: string;
+  };
 }
 
 export interface AppUserRecord extends JsonObject {

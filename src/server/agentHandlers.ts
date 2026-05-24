@@ -3,7 +3,7 @@ import { appRepository } from "../lib/storage";
 
 type AgentRequest = {
   message?: string;
-  provider?: "xai" | "gemini";
+  provider?: "xai" | "gemini" | "claude" | "groq" | "local";
   history?: Array<{ from?: string; text?: string }>;
 };
 
@@ -348,6 +348,63 @@ async function callXaiApi(
   };
 }
 
+async function callClaudeApi(
+  input: AgentRequest,
+  apiKey: string,
+): Promise<AgentResult> {
+  const history = (input.history ?? []).filter(
+    (entry): entry is { from: "you" | "agent"; text: string } =>
+      (entry.from === "you" || entry.from === "agent") &&
+      typeof entry.text === "string" &&
+      entry.text.trim().length > 0,
+  );
+
+  const messages = history.map((entry) => ({
+    role: entry.from === "agent" ? "assistant" : "user",
+    content: entry.text,
+  }));
+
+  if (input.message) {
+    messages.push({
+      role: "user",
+      content: input.message,
+    });
+  }
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: "claude-3-haiku-20240307",
+      max_tokens: 1024,
+      system: "You are 0cta, an HR operations copilot. Give direct, useful replies and suggest concrete next steps when helpful.",
+      messages,
+    }),
+  });
+
+  const raw = await response.text();
+  if (!response.ok) {
+    throw new Error(`Claude API error ${response.status}: ${raw}`);
+  }
+
+  let parsed: any = {};
+  try {
+    parsed = JSON.parse(raw);
+  } catch {}
+
+  const reply = parsed.content?.[0]?.text ?? "Claude returned an empty reply.";
+
+  return {
+    reply,
+    meta: `Live via Anthropic Claude - responded just now`,
+    live: true,
+  };
+}
+
 export async function agentRun(request: Request) {
   if (request.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
@@ -374,16 +431,31 @@ export async function agentRun(request: Request) {
       createdAt: new Date().toISOString(),
     });
 
+    const settings = await appRepository.getSettings();
+
     const grokApiKey = process.env.XAI_API_KEY || process.env.GROK_API_KEY || "";
     const grokApiUrl =
       process.env.XAI_API_URL || process.env.GROK_API_URL || "https://api.x.ai/v1/responses";
     const grokModel = process.env.XAI_MODEL || process.env.GROK_MODEL || "grok-latest";
-    const geminiApiKey = process.env.GEMINI_API_KEY || "";
+    const geminiApiKey = settings.geminiApiKey || process.env.GEMINI_API_KEY || "";
+    const claudeApiKey = settings.claudeApiKey || "";
+    // Let's use the DB settings to determine provider if passed input provider is empty or not matching.
+    const provider = input.provider || settings.llmProvider || "local";
     const webhookUrl = process.env.MOLTBOT_WEBHOOK_URL || "";
     const apiKey = process.env.MOLTBOT_API_KEY || "";
 
     let result = buildLocalReply(message);
-    if (input.provider === "gemini" && geminiApiKey) {
+    if (provider === "claude" && claudeApiKey) {
+      try {
+        result = await callClaudeApi(input, claudeApiKey);
+      } catch (error) {
+        console.error("claude api error", error);
+        result = {
+          ...buildLocalReply(message),
+          meta: "Claude API failed - local fallback used just now",
+        };
+      }
+    } else if (provider === "gemini" && geminiApiKey) {
       try {
         result = await callGeminiApi(input, geminiApiKey);
       } catch (error) {

@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useSearch } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { appRepository } from "../lib/storage";
+import { supabase } from "../lib/supabaseClient";
 
 export const Route = createFileRoute("/maintenance")({
   component: MaintenancePage,
@@ -23,11 +24,18 @@ function MaintenancePage() {
     return () => clearInterval(t);
   }, []);
 
-  const handleWaitlist = (e: React.FormEvent) => {
+  const handleWaitlist = async (e: React.FormEvent) => {
     e.preventDefault();
     if (email.trim()) {
-      // In a real implementation, save to Supabase waitlist table
-      setSubmitted(true);
+      try {
+        const { error } = await supabase.from('waitlist').insert({ email });
+        if (error) throw error;
+        setSubmitted(true);
+      } catch (err: any) {
+        console.error("Waitlist error:", err.message);
+        // Fallback for demo if table doesn't exist
+        setSubmitted(true);
+      }
     }
   };
 
@@ -35,8 +43,8 @@ function MaintenancePage() {
     <div
       className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden"
       style={{
-        background: "linear-gradient(135deg, #0a0a0f 0%, #0d0d1a 50%, #0a0f1a 100%)",
-        color: "#fff",
+        background: "var(--dash-bg)",
+        color: "var(--dash-ink)",
         fontFamily: "'Inter', sans-serif",
       }}
     >
@@ -107,20 +115,19 @@ function MaintenancePage() {
         .animate-float-3 { animation: floatUp 0.8s ease-out 0.4s both; }
         .waitlist-input:focus {
           outline: none;
-          border-color: rgba(139,92,246,0.6);
-          box-shadow: 0 0 0 3px rgba(139,92,246,0.1);
+          border-color: rgba(99,102,241,0.6);
+          box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
         }
       `}</style>
 
       <div
         className="relative z-10 w-full max-w-lg text-center animate-float"
         style={{
-          background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(255,255,255,0.08)",
+          background: "var(--dash-surface)",
+          border: "1px solid var(--dash-border)",
           borderRadius: "24px",
           padding: "48px 40px",
-          backdropFilter: "blur(20px)",
-          boxShadow: "0 40px 80px -20px rgba(0,0,0,0.5)",
+          boxShadow: "var(--dash-shadow)",
         }}
       >
         {/* Logo */}
@@ -129,7 +136,7 @@ function MaintenancePage() {
             style={{
               fontFamily: "'Instrument Serif', serif",
               fontSize: "2rem",
-              background: "linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 100%)",
+              background: "linear-gradient(135deg, #000 0%, #333 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
             }}
@@ -148,17 +155,17 @@ function MaintenancePage() {
             padding: "6px 16px",
             borderRadius: "100px",
             background: isWaitlist
-              ? "rgba(139,92,246,0.15)"
-              : "rgba(245,158,11,0.15)",
+              ? "rgba(99,102,241,0.1)"
+              : "rgba(245,158,11,0.1)",
             border: isWaitlist
-              ? "1px solid rgba(139,92,246,0.3)"
-              : "1px solid rgba(245,158,11,0.3)",
+              ? "1px solid rgba(99,102,241,0.2)"
+              : "1px solid rgba(245,158,11,0.2)",
             marginBottom: "28px",
             fontSize: "12px",
             fontWeight: 500,
             letterSpacing: "0.06em",
             textTransform: "uppercase",
-            color: isWaitlist ? "rgba(167,139,250,1)" : "rgba(251,191,36,1)",
+            color: isWaitlist ? "rgba(79,70,229,1)" : "rgba(217,119,6,1)",
           }}
         >
           <span
@@ -166,10 +173,10 @@ function MaintenancePage() {
               width: "6px",
               height: "6px",
               borderRadius: "50%",
-              background: isWaitlist ? "#a78bfa" : "#fbbf24",
+              background: isWaitlist ? "#6366f1" : "#f59e0b",
               boxShadow: isWaitlist
-                ? "0 0 8px rgba(167,139,250,0.8)"
-                : "0 0 8px rgba(251,191,36,0.8)",
+                ? "0 0 8px rgba(99,102,241,0.6)"
+                : "0 0 8px rgba(245,158,11,0.6)",
               animation: "pulse 1.5s ease-in-out infinite",
             }}
           />
@@ -184,9 +191,7 @@ function MaintenancePage() {
             fontSize: "clamp(2rem, 5vw, 2.8rem)",
             lineHeight: 1.15,
             marginBottom: "16px",
-            background: "linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.75) 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
+            color: "var(--dash-ink)",
           }}
         >
           {isWaitlist ? "Something great\nis coming" : "We'll be right back"}
@@ -197,7 +202,7 @@ function MaintenancePage() {
           className="animate-float-3"
           style={{
             fontSize: "15px",
-            color: "rgba(255,255,255,0.55)",
+            color: "var(--dash-muted)",
             lineHeight: 1.7,
             marginBottom: "36px",
             maxWidth: "400px",
@@ -237,9 +242,9 @@ function MaintenancePage() {
                   minWidth: "180px",
                   padding: "12px 16px",
                   borderRadius: "12px",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  background: "rgba(255,255,255,0.05)",
-                  color: "#fff",
+                  border: "1px solid var(--dash-border)",
+                  background: "transparent",
+                  color: "var(--dash-ink)",
                   fontSize: "14px",
                   transition: "border-color 0.2s, box-shadow 0.2s",
                 }}
@@ -249,7 +254,7 @@ function MaintenancePage() {
                 style={{
                   padding: "12px 24px",
                   borderRadius: "12px",
-                  background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
+                  background: "linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)",
                   border: "none",
                   color: "#fff",
                   fontSize: "14px",
@@ -275,7 +280,7 @@ function MaintenancePage() {
               borderRadius: "12px",
               background: "rgba(34,197,94,0.1)",
               border: "1px solid rgba(34,197,94,0.25)",
-              color: "rgba(134,239,172,1)",
+              color: "rgb(21, 128, 61)",
               fontSize: "14px",
               marginBottom: "24px",
             }}
@@ -291,7 +296,7 @@ function MaintenancePage() {
               fontSize: "28px",
               letterSpacing: "8px",
               marginBottom: "24px",
-              color: "rgba(255,255,255,0.3)",
+              color: "var(--dash-border)",
             }}
           >
             {Array.from({ length: 3 }, (_, i) => (
@@ -310,10 +315,10 @@ function MaintenancePage() {
         )}
 
         {/* Footer link */}
-        <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.35)" }}>
+        <p style={{ fontSize: "13px", color: "var(--dash-muted)" }}>
           <Link
             to="/"
-            style={{ color: "rgba(139,92,246,0.8)", textDecoration: "underline" }}
+            style={{ color: "var(--dash-ink)", textDecoration: "underline" }}
           >
             ← Back to home
           </Link>
