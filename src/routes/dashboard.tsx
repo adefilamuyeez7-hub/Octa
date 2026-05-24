@@ -873,6 +873,7 @@ const AgentPanel = memo(function AgentPanelImpl({
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
             message,
+            provider: llmProvider === "local" ? undefined : llmProvider,
             history: nextMessages.map((m) => ({ from: m.from, text: m.text })),
           }),
         });

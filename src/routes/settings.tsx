@@ -103,7 +103,7 @@ function SettingsPage() {
   const [siteName, setSiteName] = useState("0cta");
 
   // Chatbot
-  const [llmProvider, setLlmProvider] = useState<"local" | "claude" | "gemini" | "groq">("local");
+  const [llmProvider, setLlmProvider] = useState<"local" | "claude" | "gemini" | "groq">("gemini");
   const [claudeApiKey, setClaudeApiKey] = useState("");
   const [geminiApiKey, setGeminiApiKey] = useState("");
   const [groqApiKey, setGroqApiKey] = useState("");
