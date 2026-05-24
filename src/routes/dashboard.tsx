@@ -866,151 +866,44 @@ const AgentPanel = memo(function AgentPanelImpl({
         console.error("local action error", localErr);
       }
 
-      // 2. Try AI — call provider if a key is saved
+      // 2. Try AI — call server endpoint for secure provider handling
       try {
-        const settings = await appRepository.getSettings();
-        const provider = settings.llmProvider || "local";
-        const claudeKey = settings.claudeApiKey || "";
-        const geminiKey = settings.geminiApiKey || "";
-        const groqKey = settings.groqApiKey || "";
-
-        let reply = "";
-        let meta = "";
-
-        if (provider === "claude" && claudeKey) {
-          const messages = nextMessages
-            .filter((m) => m.text?.trim())
-            .map((m) => ({
-              role: m.from === "agent" ? "assistant" : "user",
-              content: m.text,
-            }));
-
-          const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
-            method: "POST",
-            headers: {
-              "content-type": "application/json",
-              "x-api-key": claudeKey,
-              "anthropic-version": "2023-06-01",
-            },
-            body: JSON.stringify({
-              model: "claude-sonnet-4-6",
-              max_tokens: 1024,
-              system:
-                "You are 0cta, an HR operations copilot. Give direct, useful replies and suggest concrete next steps when helpful.",
-              messages,
-            }),
-          });
-
-          if (claudeRes.ok) {
-            const claudeData = (await claudeRes.json()) as {
-              content?: Array<{ type?: string; text?: string }>;
-            };
-            reply =
-              claudeData.content
-                ?.filter((part) => part.type === "text" && part.text)
-                .map((part) => part.text)
-                .join("\n")
-                .trim() ?? "";
-            meta = "Live via Anthropic Claude Sonnet - just now";
-          } else {
-            console.error("Claude error", await claudeRes.text());
-          }
-        } else if (provider === "gemini" && geminiKey) {
-          const contents = nextMessages
-            .filter((m) => m.text?.trim())
-            .map((m) => ({
-              role: m.from === "agent" ? "model" : "user",
-              parts: [{ text: m.text }],
-            }));
-
-          const geminiRes = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
-            {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify({
-                contents,
-                systemInstruction: {
-                  parts: [{ text: "You are 0cta, an HR operations copilot. Give direct, useful replies and suggest concrete next steps when helpful." }],
-                },
-              }),
-            },
-          );
-
-          if (geminiRes.ok) {
-            const geminiData = await geminiRes.json() as {
-              candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-            };
-            reply = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
-            meta = "Live via Google Gemini · just now";
-          } else {
-            console.error("Gemini error", await geminiRes.text());
-          }
-        } else if (provider === "groq" && groqKey) {
-          const messages = [
-            { role: "system", content: "You are 0cta, an HR operations copilot. Give direct, useful replies and suggest concrete next steps when helpful." },
-            ...nextMessages
-              .filter((m) => m.text?.trim())
-              .map((m) => ({
-                role: m.from === "agent" ? "assistant" : "user",
-                content: m.text,
-              }))
-          ];
-
-          const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "content-type": "application/json",
-              "Authorization": `Bearer ${groqKey}`
-            },
-            body: JSON.stringify({
-              model: "llama3-8b-8192",
-              messages
-            })
-          });
-
-          if (groqRes.ok) {
-            const groqData = await groqRes.json() as {
-              choices?: Array<{ message?: { content?: string } }>;
-            };
-            reply = groqData?.choices?.[0]?.message?.content?.trim() ?? "";
-            meta = "Live via Groq · just now";
-          } else {
-            console.error("Groq error", await groqRes.text());
-          }
-        }
-
-        // Local fallback if no key or API failed
-        if (!reply) {
-          const lower = message.toLowerCase();
-          const actions: string[] = [];
-          if (lower.includes("hire")) actions.push("drafting the hiring brief");
-          if (lower.includes("payroll")) actions.push("preparing payroll review");
-          if (lower.includes("review")) actions.push("assembling a performance summary");
-          if (lower.includes("notion")) actions.push("syncing the task trail");
-          if (lower.includes("schedule") || lower.includes("1:1")) actions.push("queuing calendar follow-up");
-          reply =
-            actions.length > 0
-              ? `I'm ${actions.join(", ")} for: "${message}". Add an API key in Admin Settings for live AI responses.`
-              : `Got it — I've logged "${message.slice(0, 60)}${message.length > 60 ? "..." : ""}" and queued the next HR workflow steps.`;
-          meta = provider !== "local" 
-            ? `No API key saved for ${provider} — local fallback`
-            : "Local mode — add a key in Admin settings for live AI";
-        }
-
-        setMessages((current) => [
-          ...current,
-          { from: "agent", text: reply, meta },
-        ]);
-
-        await appRepository.appendTask({
-          type: "agent_response",
-          title: "Agent response",
-          text: reply,
-          via: meta.includes("Live via") ? "agent-live" : "agent-local",
-          createdAt: new Date().toISOString(),
+        const response = await fetch("/api/agent/run", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            message,
+            history: nextMessages.map((m) => ({ from: m.from, text: m.text })),
+          }),
         });
-        await onDataChange();
+
+        if (response.ok) {
+          const result = (await response.json()) as { reply: string; meta: string; live: boolean };
+          
+          setMessages((current) => [
+            ...current,
+            { from: "agent", text: result.reply, meta: result.meta },
+          ]);
+
+          await appRepository.appendTask({
+            type: "agent_response",
+            title: "Agent response",
+            text: result.reply,
+            via: result.live ? "agent-live" : "agent-local",
+            createdAt: new Date().toISOString(),
+          });
+          await onDataChange();
+        } else {
+          console.error("Agent API error", await response.text());
+          setMessages((current) => [
+            ...current,
+            {
+              from: "agent",
+              text: `Got it — I've logged "${message.slice(0, 60)}${message.length > 60 ? "..." : ""}" locally. All local actions were applied.`,
+              meta: "Local mode",
+            },
+          ]);
+        }
       } catch (e) {
         console.error("agent error", e);
         setMessages((current) => [
