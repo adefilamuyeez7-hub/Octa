@@ -452,6 +452,14 @@ export async function agentRun(request: Request) {
     const webhookUrl = process.env.MOLTBOT_WEBHOOK_URL || "";
     const apiKey = process.env.MOLTBOT_API_KEY || "";
 
+    console.log("🔑 Agent handler - API keys configured:", {
+      claude: !!claudeApiKey,
+      gemini: !!geminiApiKey,
+      grok: !!grokApiKey,
+      webhook: !!webhookUrl,
+      provider: input.provider,
+    });
+
     let result = buildLocalReply(message);
 
     // Try Claude first (default), then fall through to other providers
